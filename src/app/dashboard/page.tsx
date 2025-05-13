@@ -4,7 +4,7 @@ import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, LineChart,
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageTitle } from '@/components/common/page-title';
-import { ActivityIcon, TrendingUpIcon, PackageIcon } from 'lucide-react';
+import { ActivityIcon, TrendingUpIcon, PackageIcon, GitPullRequestIcon, BellIcon } from 'lucide-react';
 import type { ChartConfig } from "@/components/ui/chart"; // Assuming ChartConfig might be needed if using ChartContainer
 
 // Placeholder data
