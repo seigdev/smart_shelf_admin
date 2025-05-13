@@ -1,26 +1,18 @@
-
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  ArchiveIcon,
-  BarChart3Icon,
-  BellIcon,
   BoxesIcon,
   BrainIcon,
-  Building2Icon,
   FileTextIcon,
-  GitPullRequestIcon,
-  HomeIcon,
+  GitPullRequestIcon, // Corrected icon name
   LayoutDashboardIcon,
-  LightbulbIcon,
-  MailIcon,
-  PackagePlusIcon,
-  PackageSearchIcon,
   SettingsIcon,
-  ShieldIcon,
   UsersIcon,
+  BellIcon,
+  MailIcon,
+  ShieldIcon,
 } from 'lucide-react';
 
 import {
@@ -30,13 +22,13 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarTrigger,
+  // SidebarTrigger, // No longer needed here
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarGroupContent, // Added missing import
+  SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { ShelfPilotLogo } from '@/components/icons/shelf-pilot-logo';
-import { cn } from '@/lib/utils';
+// Removed cn import as it's not used
 
 const mainNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
@@ -81,14 +73,14 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" side="left" variant="sidebar">
-      <SidebarHeader className="flex items-center justify-between p-2 sticky top-0 bg-sidebar z-10">
-        <Link href="/dashboard" className="flex items-center gap-2 p-2 overflow-hidden group-data-[collapsible=icon]:w-8">
+      <SidebarHeader className="flex items-center justify-start p-2 sticky top-0 bg-sidebar z-10 group-data-[collapsible=icon]:justify-center">
+        <Link href="/dashboard" className="flex items-center gap-2 p-2 overflow-hidden group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:gap-0">
           <ShelfPilotLogo className="h-6 w-6 text-sidebar-primary shrink-0" />
           <span className="font-semibold text-lg text-sidebar-foreground group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 transition-opacity duration-200">
             ShelfPilot
           </span>
         </Link>
-        <SidebarTrigger className="text-sidebar-foreground hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden" />
+        {/* SidebarTrigger removed from here */}
       </SidebarHeader>
       <SidebarContent className="flex-1 overflow-y-auto">
         <SidebarMenu>
