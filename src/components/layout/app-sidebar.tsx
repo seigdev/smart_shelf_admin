@@ -49,11 +49,11 @@ const shelfManagementNavItems = [
 
 const requestsNavItems = [
  { href: '/requests', label: 'Requests', icon: GitBranchPlusIcon },
+ { href: '/invoices', label: 'Invoices', icon: FileTextIcon },
 ];
 
 const adminNavItems = [
   { href: '/users', label: 'User Management', icon: UsersIcon },
-  { href: '/invoices', label: 'Invoices', icon: FileTextIcon },
 ];
 
 const systemNavItems = [
