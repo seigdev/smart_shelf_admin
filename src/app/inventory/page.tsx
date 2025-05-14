@@ -11,13 +11,27 @@ import { Button } from '@/components/ui/button';
 import { PageTitle } from '@/components/common/page-title';
 import { placeholderInventoryItems } from '@/lib/placeholder-data';
 import type { InventoryItem } from '@/types';
-import { PackageSearchIcon, SearchIcon, Edit3Icon, Trash2Icon, PlusCircleIcon } from 'lucide-react';
+import { PackageSearchIcon, SearchIcon, Edit3Icon, Trash2Icon, PlusCircleIcon, AlertTriangleIcon } from 'lucide-react';
 import Link from 'next/link';
 import { SidebarInset } from '@/components/ui/sidebar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
 export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
   
   useEffect(() => {
     // Simulate fetching data
@@ -33,11 +47,22 @@ export default function InventoryPage() {
     );
   }, [inventoryItems, searchTerm]);
 
-  const handleDeleteItem = (itemId: string) => {
-    // Placeholder for delete functionality
-    console.log('Attempting to delete item:', itemId);
-    alert(`Delete functionality for item ${itemId} is not yet implemented.`);
-    // setInventoryItems(prevItems => prevItems.filter(item => item.id !== itemId));
+  const openDeleteDialog = (item: InventoryItem) => {
+    setItemToDelete(item);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteItem = () => {
+    if (itemToDelete) {
+      setInventoryItems(prevItems => prevItems.filter(item => item.id !== itemToDelete.id));
+      toast({
+        title: 'Item Deleted',
+        description: `Item "${itemToDelete.name}" has been successfully deleted.`,
+        variant: 'default',
+      });
+      setItemToDelete(null);
+    }
+    setIsDeleteDialogOpen(false);
   };
 
   return (
@@ -115,7 +140,7 @@ export default function InventoryPage() {
                             <Edit3Icon className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete item" onClick={() => handleDeleteItem(item.id)}>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete item" onClick={() => openDeleteDialog(item)}>
                           <Trash2Icon className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -135,6 +160,30 @@ export default function InventoryPage() {
           </CardContent>
         </Card>
       </main>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangleIcon className="h-6 w-6 text-destructive" />
+              <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            Are you sure you want to delete item "{itemToDelete?.name}"? This action cannot be undone.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteItem}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </SidebarInset>
   );
 }

@@ -11,11 +11,25 @@ import { PageTitle } from '@/components/common/page-title';
 import { SidebarInset } from '@/components/ui/sidebar';
 import type { Shelf } from '@/types';
 import { placeholderShelves } from '@/lib/placeholder-data';
-import { PlusCircleIcon, SearchIcon, Edit3Icon, Trash2Icon, ListOrderedIcon } from 'lucide-react';
+import { PlusCircleIcon, SearchIcon, Edit3Icon, Trash2Icon, ListOrderedIcon, AlertTriangleIcon } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
 export default function ViewShelvesPage() {
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [shelfToDelete, setShelfToDelete] = useState<Shelf | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Simulate fetching data
@@ -31,11 +45,22 @@ export default function ViewShelvesPage() {
     );
   }, [shelves, searchTerm]);
 
-  const handleDeleteShelf = (shelfId: string) => {
-    // Placeholder for delete functionality
-    console.log('Attempting to delete shelf:', shelfId);
-    alert(`Delete functionality for shelf ${shelfId} is not yet implemented.`);
-    // setShelves(prevShelves => prevShelves.filter(shelf => shelf.id !== shelfId));
+  const openDeleteDialog = (shelf: Shelf) => {
+    setShelfToDelete(shelf);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteShelf = () => {
+    if (shelfToDelete) {
+      setShelves(prevShelves => prevShelves.filter(shelf => shelf.id !== shelfToDelete.id));
+      toast({
+        title: 'Shelf Deleted',
+        description: `Shelf "${shelfToDelete.name}" has been successfully deleted.`,
+        variant: 'default',
+      });
+      setShelfToDelete(null);
+    }
+    setIsDeleteDialogOpen(false);
   };
 
   return (
@@ -94,7 +119,7 @@ export default function ViewShelvesPage() {
                             <Edit3Icon className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete shelf" onClick={() => handleDeleteShelf(shelf.id)}>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete shelf" onClick={() => openDeleteDialog(shelf)}>
                           <Trash2Icon className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -122,6 +147,30 @@ export default function ViewShelvesPage() {
           </CardContent>
         </Card>
       </main>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+             <div className="flex items-center gap-2">
+                <AlertTriangleIcon className="h-6 w-6 text-destructive" />
+                <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+              </div>
+          </AlertDialogHeader>
+          <AlertDialogDescription>
+            Are you sure you want to delete shelf "{shelfToDelete?.name}"? This action cannot be undone.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShelfToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteShelf}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </SidebarInset>
   );
 }
