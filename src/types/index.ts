@@ -29,3 +29,19 @@ export interface ShelfLocationSuggestion {
   shelfLocationSuggestion: string;
   rationale: string;
 }
+
+export type RequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Fulfilled';
+
+export interface RequestItem {
+  id: string;
+  itemName: string;
+  itemId: string; // Should ideally link to InventoryItem.id
+  quantityRequested: number;
+  requesterName: string;
+  requesterId?: string; // Optional: Link to a User.id
+  requestDate: string; // ISO date string
+  status: RequestStatus;
+  approvedBy?: string; // Optional: User ID of approver
+  approvalDate?: string; // Optional: ISO date string
+  notes?: string;
+}

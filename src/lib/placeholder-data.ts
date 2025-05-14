@@ -1,5 +1,5 @@
 
-import type { InventoryItem, Shelf } from '@/types';
+import type { InventoryItem, Shelf, RequestItem } from '@/types';
 
 export const placeholderInventoryItems: InventoryItem[] = [
   {
@@ -99,4 +99,63 @@ export const placeholderShelves: Shelf[] = [
     locationDescription: 'Cold Storage Unit 1, Shelf Rack 1',
     notes: 'Temperature controlled. For perishable goods.',
   }
+];
+
+export const placeholderRequests: RequestItem[] = [
+  {
+    id: 'REQ-001',
+    itemName: 'Wireless Mouse XM300',
+    itemId: '1',
+    quantityRequested: 5,
+    requesterName: 'Alice Johnson',
+    requesterId: 'user-123',
+    requestDate: '2023-11-01T10:00:00Z',
+    status: 'Pending',
+    notes: 'Urgent need for new marketing team members.',
+  },
+  {
+    id: 'REQ-002',
+    itemName: 'Mechanical Keyboard K780',
+    itemId: '2',
+    quantityRequested: 2,
+    requesterName: 'Bob Williams',
+    requesterId: 'user-456',
+    requestDate: '2023-11-02T14:30:00Z',
+    status: 'Approved',
+    approvedBy: 'admin-001',
+    approvalDate: '2023-11-03T09:15:00Z',
+  },
+  {
+    id: 'REQ-003',
+    itemName: 'Organic Green Tea (100 bags)',
+    itemId: '3',
+    quantityRequested: 10,
+    requesterName: 'Carol Davis',
+    requesterId: 'user-789',
+    requestDate: '2023-11-03T11:20:00Z',
+    status: 'Rejected',
+    notes: 'Budget constraints for this quarter.',
+  },
+  {
+    id: 'REQ-004',
+    itemName: 'Hardcover Notebook Set (3 Pack)',
+    itemId: '5',
+    quantityRequested: 20,
+    requesterName: 'David Brown',
+    requesterId: 'user-101',
+    requestDate: '2023-11-04T08:00:00Z',
+    status: 'Fulfilled',
+    approvedBy: 'admin-001',
+    approvalDate: '2023-11-04T10:00:00Z',
+  },
+  {
+    id: 'REQ-005',
+    itemName: 'Yoga Mat Premium Comfort',
+    itemId: '4',
+    quantityRequested: 3,
+    requesterName: 'Eve Wilson',
+    requesterId: 'user-112',
+    requestDate: '2023-11-05T16:45:00Z',
+    status: 'Pending',
+  },
 ];
