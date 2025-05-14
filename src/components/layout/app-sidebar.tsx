@@ -14,6 +14,9 @@ import {
   BellIcon,
   MailIcon,
   ShieldIcon,
+  PlusCircleIcon,
+  ListOrderedIcon,
+  LayoutPanelLeftIcon, // Or LibrarySquareIcon, ArchiveIcon
 } from 'lucide-react';
 
 import {
@@ -29,11 +32,23 @@ import {
 } from '@/components/ui/sidebar';
 import { ShelfPilotLogo } from '@/components/icons/shelf-pilot-logo';
 
-const mainNavItems = [
+const mainDashboardNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
-  { href: '/inventory', label: 'Inventory', icon: BoxesIcon },
-  { href: '/inventory/optimize-shelf', label: 'Shelf Management', icon: BrainIcon },
-  { href: '/requests', label: 'Requests', icon: GitBranchPlusIcon },
+];
+
+const inventoryNavItems = [
+  { href: '/inventory', label: 'Browse Inventory', icon: BoxesIcon },
+  { href: '/inventory/add', label: 'Add Item', icon: PlusCircleIcon },
+];
+
+const shelfManagementNavItems = [
+  { href: '/inventory/shelves', label: 'View Shelves', icon: ListOrderedIcon },
+  { href: '/inventory/shelves/add', label: 'Register Shelf', icon: LayoutPanelLeftIcon },
+  { href: '/inventory/optimize-shelf', label: 'Optimize Placement', icon: BrainIcon },
+];
+
+const requestsNavItems = [
+ { href: '/requests', label: 'Requests', icon: GitBranchPlusIcon },
 ];
 
 const adminNavItems = [
@@ -51,7 +66,7 @@ const systemNavItems = [
 export function AppSidebar() {
   const pathname = usePathname();
 
-  const renderNavItems = (items: typeof mainNavItems) =>
+  const renderNavItems = (items: { href: string; label: string; icon: React.ElementType }[]) =>
     items.map((item) => (
       <SidebarMenuItem key={item.href}>
         <Link href={item.href} passHref legacyBehavior>
@@ -84,7 +99,21 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarGroup>
             <SidebarGroupLabel>Workspace</SidebarGroupLabel>
-            <SidebarGroupContent>{renderNavItems(mainNavItems)}</SidebarGroupContent>
+            <SidebarGroupContent>
+              {renderNavItems(mainDashboardNavItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+           <SidebarGroup>
+            <SidebarGroupLabel>Inventory</SidebarGroupLabel>
+            <SidebarGroupContent>{renderNavItems(inventoryNavItems)}</SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Shelf Management</SidebarGroupLabel>
+            <SidebarGroupContent>{renderNavItems(shelfManagementNavItems)}</SidebarGroupContent>
+          </SidebarGroup>
+           <SidebarGroup>
+            <SidebarGroupLabel>Operations</SidebarGroupLabel>
+            <SidebarGroupContent>{renderNavItems(requestsNavItems)}</SidebarGroupContent>
           </SidebarGroup>
           <SidebarGroup>
             <SidebarGroupLabel>Administration</SidebarGroupLabel>

@@ -1,4 +1,5 @@
-import type { InventoryItem } from '@/types';
+
+import type { InventoryItem, Shelf } from '@/types';
 
 export const placeholderInventoryItems: InventoryItem[] = [
   {
@@ -71,4 +72,31 @@ export const placeholderInventoryItems: InventoryItem[] = [
     weight: 0.8,
     dimensions: { length: 21, width: 15, height: 4.5 }, // Stacked height for 3
   },
+];
+
+export const placeholderShelves: Shelf[] = [
+  {
+    id: 'shelf-001',
+    name: 'Alpha-01-Top',
+    locationDescription: 'Warehouse Section A, Row 1, Top Level',
+    notes: 'Suitable for light to medium weight items. Max load 50kg.',
+  },
+  {
+    id: 'shelf-002',
+    name: 'Bravo-03-Mid',
+    locationDescription: 'Warehouse Section B, Row 3, Middle Level',
+    notes: 'Easy access shelf for frequently picked items.',
+  },
+  {
+    id: 'shelf-003',
+    name: 'Charlie-Receiving-Temp',
+    locationDescription: 'Receiving Area, Temporary Holding Zone 2',
+    notes: 'For newly received items awaiting sorting.',
+  },
+  {
+    id: 'shelf-004',
+    name: 'Delta-ColdStore-01',
+    locationDescription: 'Cold Storage Unit 1, Shelf Rack 1',
+    notes: 'Temperature controlled. For perishable goods.',
+  }
 ];
