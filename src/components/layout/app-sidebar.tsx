@@ -7,7 +7,7 @@ import {
   BoxesIcon,
   BrainIcon,
   FileTextIcon,
-  GitBranchPlusIcon,
+  GitBranchPlusIcon, // Corrected import
   LayoutDashboardIcon,
   SettingsIcon,
   UsersIcon,
@@ -16,7 +16,7 @@ import {
   ShieldIcon,
   PlusCircleIcon,
   ListOrderedIcon,
-  LayoutPanelLeftIcon, // Or LibrarySquareIcon, ArchiveIcon
+  LayoutPanelLeftIcon,
 } from 'lucide-react';
 
 import {
@@ -67,23 +67,43 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   const renderNavItems = (items: { href: string; label: string; icon: React.ElementType }[]) =>
-    items.map((item) => (
-      <SidebarMenuItem key={item.href}>
-        <Link href={item.href} passHref legacyBehavior>
-          <SidebarMenuButton
-            asChild
-            isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
-            tooltip={item.label}
-            className="justify-start"
-          >
-            <a>
-              <item.icon />
-              <span>{item.label}</span>
-            </a>
-          </SidebarMenuButton>
-        </Link>
-      </SidebarMenuItem>
-    ));
+    items.map((item) => {
+      let currentItemIsExactlyActive = pathname === item.href;
+      let currentItemIsPrefixActive = item.href !== '/dashboard' && pathname.startsWith(item.href);
+
+      if (currentItemIsPrefixActive && !currentItemIsExactlyActive) {
+        // The current item is a prefix of the pathname, but not an exact match.
+        // Check if any *other* sibling item in this list is an exact match for the pathname
+        // and is a child of the current item.
+        const moreSpecificSiblingIsActive = items.some(sibling =>
+          pathname === sibling.href && // current path is exactly the sibling's path
+          sibling.href.startsWith(item.href) && // sibling is a child of current item
+          sibling.href !== item.href // sibling is not the current item itself
+        );
+        if (moreSpecificSiblingIsActive) {
+          currentItemIsPrefixActive = false; // Deactivate parent if a more specific child nav item is active
+        }
+      }
+      const isActive = currentItemIsExactlyActive || currentItemIsPrefixActive;
+
+      return (
+        <SidebarMenuItem key={item.href}>
+          <Link href={item.href} passHref legacyBehavior>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive}
+              tooltip={item.label}
+              className="justify-start"
+            >
+              <a>
+                <item.icon />
+                <span>{item.label}</span>
+              </a>
+            </SidebarMenuButton>
+          </Link>
+        </SidebarMenuItem>
+      );
+    });
 
   return (
     <Sidebar collapsible="icon" side="left" variant="sidebar">
