@@ -15,6 +15,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, LogInIcon } from 'lucide-react';
 import { ShelfPilotLogo } from '@/components/icons/shelf-pilot-logo';
+import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { signInWithEmailAndPassword } from 'firebase/auth'; // Import Firebase auth function
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -38,29 +40,41 @@ export default function LoginPage() {
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
-    console.log('Login attempt with data:', data);
-    // Simulate API call for login
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Replace with actual Firebase login logic
-    // For now, we'll simulate a successful login
-    const loginSuccessful = true; 
-
-    if (loginSuccessful) {
+    try {
+      // Sign in with Firebase
+      await signInWithEmailAndPassword(auth, data.email, data.password);
+      
       toast({
         title: 'Login Successful!',
         description: 'Welcome back!',
       });
       router.push('/dashboard'); // Redirect to dashboard
-    } else {
+    } catch (error: any) {
+      console.error('Firebase login error:', error);
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      switch (error.code) {
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address format.';
+          break;
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential': // Covers both wrong password and user not found for newer SDK versions
+          errorMessage = 'Invalid email or password. Please try again.';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many login attempts. Please try again later.';
+          break;
+        default:
+          errorMessage = 'Login failed. Please try again.';
+      }
       toast({
         title: 'Login Failed',
-        description: 'Invalid email or password. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (

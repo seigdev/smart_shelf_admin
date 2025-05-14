@@ -29,4 +29,4 @@ auth = getAuth(app);
 db = getFirestore(app);
 storage = getStorage(app);
 
-export { app, auth, db, storage };
+export { app, auth,
