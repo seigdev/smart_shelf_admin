@@ -30,7 +30,7 @@ export interface ShelfLocationSuggestion {
   rationale: string;
 }
 
-export type RequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Fulfilled';
+export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface RequestItem {
   id: string;
@@ -45,3 +45,4 @@ export interface RequestItem {
   approvalDate?: string; // Optional: ISO date string
   notes?: string;
 }
+

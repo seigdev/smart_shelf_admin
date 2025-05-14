@@ -48,7 +48,6 @@ const statusOptions: { value: RequestStatus | 'all'; label: string }[] = [
   { value: 'Pending', label: 'Pending' },
   { value: 'Approved', label: 'Approved' },
   { value: 'Rejected', label: 'Rejected' },
-  { value: 'Fulfilled', label: 'Fulfilled' },
 ];
 
 export default function RequestsPage() {
@@ -79,15 +78,6 @@ export default function RequestsPage() {
     );
   };
   
-  const handleMarkFulfilled = (requestId: string) => {
-    console.log(`Marking request ${requestId} as fulfilled`);
-    setRequests((prevRequests) =>
-      prevRequests.map((req) =>
-        req.id === requestId ? { ...req, status: 'Fulfilled' } : req
-      )
-    );
-  };
-
 
   const filteredRequests = useMemo(() => {
     return requests
@@ -110,11 +100,9 @@ export default function RequestsPage() {
       case 'Pending':
         return 'secondary';
       case 'Approved':
-        return 'default'; // Typically primary color (blue/green)
+        return 'default'; 
       case 'Rejected':
         return 'destructive';
-      case 'Fulfilled':
-        return 'outline'; // Or consider a custom success variant if needed
       default:
         return 'outline';
     }
@@ -125,9 +113,8 @@ export default function RequestsPage() {
       case 'Pending':
         return 'text-yellow-600 border-yellow-500 dark:text-yellow-400 dark:border-yellow-600';
       case 'Approved':
-         return 'bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700'; // More explicit success
-      case 'Fulfilled':
-        return 'text-blue-600 border-blue-500 dark:text-blue-400 dark:border-blue-600';
+         return 'bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700 border-transparent';
+      // Rejected is handled by the 'destructive' variant from getStatusBadgeVariant
       default:
         return '';
     }
@@ -234,15 +221,6 @@ export default function RequestsPage() {
                                 <DropdownMenuItem onClick={() => handleReject(request.id)} className="text-red-600 hover:!text-red-700 dark:text-red-400 dark:hover:!text-red-500">
                                   <XCircle className="mr-2 h-4 w-4" />
                                   Reject
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                             {request.status === 'Approved' && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleMarkFulfilled(request.id)} className="text-blue-600 hover:!text-blue-700 dark:text-blue-400 dark:hover:!text-blue-500">
-                                   <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  Mark as Fulfilled
                                 </DropdownMenuItem>
                               </>
                             )}

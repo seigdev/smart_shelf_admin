@@ -35,7 +35,7 @@ export default function InvoiceGenerationPage() {
 
   useEffect(() => {
     // Simulate fetching data and filter for approved requests
-    const filtered = placeholderRequests.filter(req => req.status === 'Approved' || req.status === 'Fulfilled');
+    const filtered = placeholderRequests.filter(req => req.status === 'Approved');
     setApprovedRequests(filtered);
   }, []);
 
@@ -65,14 +65,14 @@ export default function InvoiceGenerationPage() {
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
         <PageTitle
           title="Invoice Generation"
-          description="Generate invoices for approved or fulfilled item requests."
+          description="Generate invoices for approved item requests."
         />
 
         <Card>
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <CardTitle>Approved & Fulfilled Requests</CardTitle>
+                <CardTitle>Approved Requests</CardTitle>
                 <CardDescription>
                   Displaying {filteredApprovedRequests.length} of {approvedRequests.length} requests ready for invoicing.
                 </CardDescription>
@@ -114,8 +114,8 @@ export default function InvoiceGenerationPage() {
                         {request.approvalDate ? new Date(request.approvalDate).toLocaleDateString() : 'N/A'}
                       </TableCell>
                        <TableCell>
-                        <Badge variant={request.status === 'Approved' ? 'default' : 'outline'} 
-                               className={request.status === 'Approved' ? 'bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700' : 'text-blue-600 border-blue-500 dark:text-blue-400 dark:border-blue-600'}>
+                        <Badge variant={'default'} 
+                               className={'bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700 border-transparent'}>
                           {request.status}
                         </Badge>
                       </TableCell>
@@ -137,7 +137,7 @@ export default function InvoiceGenerationPage() {
                 <AlertTriangleIcon className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold">No Approved Requests Found</h3>
                 <p className="text-muted-foreground">
-                  There are currently no approved or fulfilled requests available for invoice generation.
+                  There are currently no approved requests available for invoice generation.
                 </p>
                  <Link href="/requests" passHref>
                   <Button variant="link" className="mt-2">

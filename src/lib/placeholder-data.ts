@@ -144,7 +144,7 @@ export const placeholderRequests: RequestItem[] = [
     requesterName: 'David Brown',
     requesterId: 'user-101',
     requestDate: '2023-11-04T08:00:00Z',
-    status: 'Fulfilled',
+    status: 'Approved', // Changed from Fulfilled
     approvedBy: 'admin-001',
     approvalDate: '2023-11-04T10:00:00Z',
   },
@@ -159,3 +159,4 @@ export const placeholderRequests: RequestItem[] = [
     status: 'Pending',
   },
 ];
+
