@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,7 +7,7 @@ import {
   BoxesIcon,
   BrainIcon,
   FileTextIcon,
-  GitPullRequestIcon, // Corrected icon name
+  GitBranchPlusIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   UsersIcon,
@@ -22,19 +23,17 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  // SidebarTrigger, // No longer needed here
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
 } from '@/components/ui/sidebar';
 import { ShelfPilotLogo } from '@/components/icons/shelf-pilot-logo';
-// Removed cn import as it's not used
 
 const mainNavItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
   { href: '/inventory', label: 'Inventory', icon: BoxesIcon },
-  { href: '/inventory/optimize-shelf', label: 'Optimize Shelf', icon: BrainIcon },
-  { href: '/requests', label: 'Requests', icon: GitPullRequestIcon },
+  { href: '/inventory/optimize-shelf', label: 'Shelf Management', icon: BrainIcon },
+  { href: '/requests', label: 'Requests', icon: GitBranchPlusIcon },
 ];
 
 const adminNavItems = [
@@ -80,7 +79,6 @@ export function AppSidebar() {
             ShelfPilot
           </span>
         </Link>
-        {/* SidebarTrigger removed from here */}
       </SidebarHeader>
       <SidebarContent className="flex-1 overflow-y-auto">
         <SidebarMenu>

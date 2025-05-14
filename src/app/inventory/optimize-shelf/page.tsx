@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -56,7 +57,7 @@ export default function OptimizeShelfPage() {
   return (
     <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
       <PageTitle 
-        title="Shelf Location Optimization"
+        title="Shelf Management"
         description="Get AI-powered suggestions for the best shelf location for new products."
       />
 
