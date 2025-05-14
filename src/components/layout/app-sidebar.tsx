@@ -7,7 +7,7 @@ import {
   BoxesIcon,
   BrainIcon,
   FileTextIcon,
-  GitBranchPlusIcon, // Corrected import
+  GitBranchPlusIcon,
   LayoutDashboardIcon,
   SettingsIcon,
   UsersIcon,
@@ -68,20 +68,22 @@ export function AppSidebar() {
 
   const renderNavItems = (items: { href: string; label: string; icon: React.ElementType }[]) =>
     items.map((item) => {
-      let currentItemIsExactlyActive = pathname === item.href;
-      let currentItemIsPrefixActive = item.href !== '/dashboard' && pathname.startsWith(item.href);
+      const currentItemIsExactlyActive = pathname === item.href;
+      // For prefix active, ensure it's not an exact match to begin with
+      let currentItemIsPrefixActive = !currentItemIsExactlyActive &&
+                                       item.href !== '/dashboard' &&
+                                       pathname.startsWith(item.href);
 
-      if (currentItemIsPrefixActive && !currentItemIsExactlyActive) {
+      if (currentItemIsPrefixActive) {
         // The current item is a prefix of the pathname, but not an exact match.
-        // Check if any *other* sibling item in this list is an exact match for the pathname
-        // and is a child of the current item.
-        const moreSpecificSiblingIsActive = items.some(sibling =>
-          pathname === sibling.href && // current path is exactly the sibling's path
-          sibling.href.startsWith(item.href) && // sibling is a child of current item
-          sibling.href !== item.href // sibling is not the current item itself
+        // Check if any *other* sibling item in this list is an exact match for the pathname.
+        const aMoreSpecificSiblingInThisGroupIsExactlyActive = items.some(sibling =>
+          pathname === sibling.href && // The sibling is the *exact* page we are on
+          sibling.href !== item.href    // And this sibling is not the current item we are evaluating (the parent)
         );
-        if (moreSpecificSiblingIsActive) {
-          currentItemIsPrefixActive = false; // Deactivate parent if a more specific child nav item is active
+
+        if (aMoreSpecificSiblingInThisGroupIsExactlyActive) {
+          currentItemIsPrefixActive = false; // Deactivate parent if a more specific child nav item in the same group is active
         }
       }
       const isActive = currentItemIsExactlyActive || currentItemIsPrefixActive;
