@@ -89,9 +89,11 @@ export default function ViewShelvesPage() {
                       <TableCell>{shelf.locationDescription}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{shelf.notes || 'N/A'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="mr-2" aria-label="Edit shelf" onClick={() => alert(`Edit for shelf ${shelf.id} not implemented.`)}>
-                          <Edit3Icon className="h-4 w-4" />
-                        </Button>
+                        <Link href={`/inventory/shelves/edit/${shelf.id}`} passHref>
+                          <Button variant="ghost" size="icon" className="mr-2" aria-label="Edit shelf">
+                            <Edit3Icon className="h-4 w-4" />
+                          </Button>
+                        </Link>
                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete shelf" onClick={() => handleDeleteShelf(shelf.id)}>
                           <Trash2Icon className="h-4 w-4" />
                         </Button>
