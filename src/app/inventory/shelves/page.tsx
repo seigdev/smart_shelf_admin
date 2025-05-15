@@ -10,8 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageTitle } from '@/components/common/page-title';
 import { SidebarInset } from '@/components/ui/sidebar';
 import type { Shelf } from '@/types';
-import { placeholderShelves } from '@/lib/placeholder-data';
-import { PlusCircleIcon, SearchIcon, Edit3Icon, Trash2Icon, ListOrderedIcon, AlertTriangleIcon } from 'lucide-react';
+import { PlusCircleIcon, SearchIcon, Edit3Icon, Trash2Icon, ListOrderedIcon, AlertTriangleIcon, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,17 +22,35 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
 export default function ViewShelvesPage() {
   const [shelves, setShelves] = useState<Shelf[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [shelfToDelete, setShelfToDelete] = useState<Shelf | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
+  async function fetchShelves() {
+    setIsLoading(true);
+    try {
+      const shelvesCollectionRef = collection(db, 'shelves');
+      const q = query(shelvesCollectionRef, orderBy('name'));
+      const shelvesSnapshot = await getDocs(q);
+      const shelvesList = shelvesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shelf));
+      setShelves(shelvesList);
+    } catch (error) {
+      console.error("Error fetching shelves: ", error);
+      toast({ title: "Error", description: "Could not fetch shelves from database.", variant: "destructive" });
+    }
+    setIsLoading(false);
+  }
+
   useEffect(() => {
-    // Simulate fetching data
-    setShelves(placeholderShelves);
+    fetchShelves();
   }, []);
 
   const filteredShelves = useMemo(() => {
@@ -50,15 +67,22 @@ export default function ViewShelvesPage() {
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDeleteShelf = () => {
+  const confirmDeleteShelf = async () => {
     if (shelfToDelete) {
-      setShelves(prevShelves => prevShelves.filter(shelf => shelf.id !== shelfToDelete.id));
-      toast({
-        title: 'Shelf Deleted',
-        description: `Shelf "${shelfToDelete.name}" has been successfully deleted.`,
-        variant: 'default',
-      });
+      setIsDeleting(true);
+      try {
+        await deleteDoc(doc(db, 'shelves', shelfToDelete.id));
+        toast({
+          title: 'Shelf Deleted',
+          description: `Shelf "${shelfToDelete.name}" has been successfully deleted.`,
+        });
+        fetchShelves(); // Refetch shelves to update the list
+      } catch (error) {
+        console.error("Error deleting shelf: ", error);
+        toast({ title: "Error deleting shelf", description: "Could not delete the shelf from database.", variant: "destructive" });
+      }
       setShelfToDelete(null);
+      setIsDeleting(false);
     }
     setIsDeleteDialogOpen(false);
   };
@@ -97,7 +121,11 @@ export default function ViewShelvesPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredShelves.length > 0 ? (
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              </div>
+            ) : filteredShelves.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -119,8 +147,8 @@ export default function ViewShelvesPage() {
                             <Edit3Icon className="h-4 w-4" />
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete shelf" onClick={() => openDeleteDialog(shelf)}>
-                          <Trash2Icon className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete shelf" onClick={() => openDeleteDialog(shelf)} disabled={isDeleting && shelfToDelete?.id === shelf.id}>
+                          {isDeleting && shelfToDelete?.id === shelf.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2Icon className="h-4 w-4" />}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -132,9 +160,9 @@ export default function ViewShelvesPage() {
                 <ListOrderedIcon className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold">No Shelves Found</h3>
                 <p className="text-muted-foreground">
-                  {searchTerm ? "Try adjusting your search term." : "There are no shelves registered yet."}
+                  {searchTerm ? "Try adjusting your search term." : "There are no shelves registered in the database yet."}
                 </p>
-                {!searchTerm && (
+                {!searchTerm && shelves.length === 0 && (
                    <Link href="/inventory/shelves/add" passHref>
                     <Button className="mt-4">
                       <PlusCircleIcon className="mr-2 h-4 w-4" />
@@ -157,14 +185,16 @@ export default function ViewShelvesPage() {
               </div>
           </AlertDialogHeader>
           <AlertDialogDescription>
-            Are you sure you want to delete shelf "{shelfToDelete?.name}"? This action cannot be undone.
+            Are you sure you want to delete shelf "{shelfToDelete?.name}"? This action cannot be undone and will permanently remove it from the database.
           </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShelfToDelete(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteShelf}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
             >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

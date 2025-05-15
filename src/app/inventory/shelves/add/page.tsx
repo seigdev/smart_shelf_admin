@@ -6,17 +6,19 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Used by Form components
 import { Textarea } from '@/components/ui/textarea';
 import { PageTitle } from '@/components/common/page-title';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { LayoutPanelLeftIcon, Loader2, CheckCircle, CornerDownLeft } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Shelf name must be at least 2 characters.' }).max(50, { message: 'Shelf name must be 50 characters or less.' }),
@@ -29,6 +31,7 @@ type RegisterShelfFormValues = z.infer<typeof formSchema>;
 export default function RegisterShelfPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<RegisterShelfFormValues>({
     resolver: zodResolver(formSchema),
@@ -41,27 +44,27 @@ export default function RegisterShelfPage() {
 
   const onSubmit: SubmitHandler<RegisterShelfFormValues> = async (data) => {
     setIsLoading(true);
-    console.log('Registering new shelf with data:', data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // In a real app, you would:
-    // 1. Call an API to save the shelf.
-    // 2. Handle success/error responses.
-    // 3. Potentially redirect or update local state.
-
-    toast({
-      title: 'Shelf Registered!',
-      description: `Shelf "${data.name}" has been successfully registered.`,
-      variant: 'default', // 'default' or 'destructive'
-      action: (
-        <CheckCircle className="h-5 w-5 text-green-500" />
-      ),
-    });
-    
-    form.reset(); // Reset form after successful submission
-    setIsLoading(false);
-    // Potentially navigate to the shelves list page: router.push('/inventory/shelves');
+    try {
+      const shelvesCollectionRef = collection(db, 'shelves');
+      await addDoc(shelvesCollectionRef, data);
+      
+      toast({
+        title: 'Shelf Registered!',
+        description: `Shelf "${data.name}" has been successfully registered in the database.`,
+        variant: 'default',
+        action: (
+          <CheckCircle className="h-5 w-5 text-green-500" />
+        ),
+      });
+      
+      form.reset(); 
+      router.push('/inventory/shelves'); // Navigate to shelves list after successful registration
+    } catch (error) {
+      console.error("Error registering shelf: ", error);
+      toast({ title: "Error", description: "Could not register shelf in the database.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -84,7 +87,7 @@ export default function RegisterShelfPage() {
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <CardHeader>
                 <CardTitle>Shelf Information</CardTitle>
-                <CardDescription>Fill in the details for the new shelf.</CardDescription>
+                <CardDescription>Fill in the details for the new shelf to save it to the database.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <FormField

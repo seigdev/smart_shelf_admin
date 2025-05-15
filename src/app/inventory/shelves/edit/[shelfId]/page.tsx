@@ -17,8 +17,9 @@ import { SidebarInset } from '@/components/ui/sidebar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, CornerDownLeft, AlertTriangle, SaveIcon } from 'lucide-react';
-import { placeholderShelves } from '@/lib/placeholder-data';
 import type { Shelf } from '@/types';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Shelf name must be at least 2 characters.' }).max(50, { message: 'Shelf name must be 50 characters or less.' }),
@@ -29,7 +30,8 @@ const formSchema = z.object({
 type EditShelfFormValues = z.infer<typeof formSchema>;
 
 export default function EditShelfPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Changed from isLoading to isSaving for clarity
+  const [isFetching, setIsFetching] = useState(true);
   const [shelf, setShelf] = useState<Shelf | null>(null);
   const [notFound, setNotFound] = useState(false);
   const { toast } = useToast();
@@ -48,45 +50,78 @@ export default function EditShelfPage() {
 
   useEffect(() => {
     if (shelfId) {
-      const foundShelf = placeholderShelves.find(s => s.id === shelfId);
-      if (foundShelf) {
-        setShelf(foundShelf);
-        form.reset({
-          name: foundShelf.name,
-          locationDescription: foundShelf.locationDescription,
-          notes: foundShelf.notes || '',
-        });
-      } else {
-        setNotFound(true);
-      }
+      const fetchShelfData = async () => {
+        setIsFetching(true);
+        setNotFound(false);
+        try {
+          const shelfDocRef = doc(db, 'shelves', shelfId);
+          const shelfSnap = await getDoc(shelfDocRef);
+
+          if (shelfSnap.exists()) {
+            const shelfData = shelfSnap.data() as Omit<Shelf, 'id'>;
+            setShelf({ id: shelfSnap.id, ...shelfData });
+            form.reset({
+              name: shelfData.name,
+              locationDescription: shelfData.locationDescription,
+              notes: shelfData.notes || '',
+            });
+          } else {
+            setNotFound(true);
+            setShelf(null);
+            toast({ title: "Not Found", description: "Shelf data could not be found.", variant: "destructive" });
+          }
+        } catch (error) {
+          console.error("Error fetching shelf: ", error);
+          toast({ title: "Error", description: "Could not fetch shelf details from database.", variant: "destructive" });
+          setNotFound(true);
+        }
+        setIsFetching(false);
+      };
+      fetchShelfData();
     }
-  }, [shelfId, form]);
+  }, [shelfId, form, toast]);
 
   const onSubmit: SubmitHandler<EditShelfFormValues> = async (data) => {
-    setIsLoading(true);
-    console.log('Updating shelf with data:', data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: 'Shelf Updated!',
-      description: `Shelf "${data.name}" has been successfully updated.`,
-      action: (
-        <CheckCircle className="h-5 w-5 text-green-500" />
-      ),
-    });
-    
-    setIsLoading(false);
-    // router.push('/inventory/shelves'); // Optionally navigate back
+    if (!shelf) return;
+    setIsSaving(true);
+    try {
+      const shelfDocRef = doc(db, 'shelves', shelf.id);
+      await updateDoc(shelfDocRef, data); 
+      
+      toast({
+        title: 'Shelf Updated!',
+        description: `Shelf "${data.name}" has been successfully updated in the database.`,
+        action: (
+          <CheckCircle className="h-5 w-5 text-green-500" />
+        ),
+      });
+      router.push('/inventory/shelves'); // Navigate back to shelves list
+    } catch (error) {
+      console.error("Error updating shelf: ", error);
+      toast({ title: "Error", description: "Could not update shelf in the database.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  if (isFetching) {
+     return (
+      <SidebarInset className="flex flex-1 flex-col">
+        <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:gap-8 md:p-6">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading shelf details...</p>
+        </main>
+      </SidebarInset>
+    );
+  }
+  
   if (notFound) {
     return (
       <SidebarInset className="flex flex-1 flex-col">
         <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:gap-8 md:p-6">
           <AlertTriangle className="h-16 w-16 text-destructive" />
           <h2 className="text-2xl font-semibold">Shelf Not Found</h2>
-          <p className="text-muted-foreground">The shelf you are looking for does not exist.</p>
+          <p className="text-muted-foreground">The shelf you are looking for does not exist in the database.</p>
           <Link href="/inventory/shelves" passHref>
             <Button variant="outline">
               <CornerDownLeft className="mr-2 h-4 w-4" />
@@ -98,16 +133,6 @@ export default function EditShelfPage() {
     );
   }
 
-  if (!shelf && !notFound) {
-     return (
-      <SidebarInset className="flex flex-1 flex-col">
-        <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:gap-8 md:p-6">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading shelf details...</p>
-        </main>
-      </SidebarInset>
-    );
-  }
 
   return (
     <SidebarInset className="flex flex-1 flex-col">
@@ -184,8 +209,8 @@ export default function EditShelfPage() {
                 />
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-                  {isLoading ? (
+                <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+                  {isSaving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <SaveIcon className="mr-2 h-4 w-4" />
