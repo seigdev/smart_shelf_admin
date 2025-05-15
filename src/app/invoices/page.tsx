@@ -34,10 +34,11 @@ export default function InvoiceGenerationPage() {
       setIsLoading(true);
       try {
         const requestsCollectionRef = collection(db, 'itemRequests');
+        // Query for requests that are 'Approved' and order them by approval date
         const q = query(
           requestsCollectionRef, 
           where('status', '==', 'Approved'),
-          orderBy('approvalDate', 'desc') // Order by when they were approved
+          orderBy('approvalDate', 'desc') 
         );
         const requestsSnapshot = await getDocs(q);
         const fetchedRequests = requestsSnapshot.docs.map(docSnap => {
@@ -45,6 +46,7 @@ export default function InvoiceGenerationPage() {
           return { 
             id: docSnap.id, 
             ...data,
+            // Ensure Timestamps are converted to a serializable format if needed, or use toDate() for display
             requestDate: data.requestDate instanceof Timestamp ? data.requestDate.toDate().toISOString() : String(data.requestDate),
             approvalDate: data.approvalDate instanceof Timestamp ? data.approvalDate.toDate().toISOString() : String(data.approvalDate),
             lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : undefined,
@@ -61,13 +63,13 @@ export default function InvoiceGenerationPage() {
   }, [toast]);
 
   const handleGenerateInvoice = (request: RequestItem) => {
+    // This is a placeholder for actual invoice generation logic
     console.log(`Simulating invoice generation for request ${request.id}`);
     toast({
       title: 'Invoice Generation Simulated',
       description: `Invoice for request ID ${request.id} (${request.itemName}) would be generated here.`,
       action: <FileTextIcon className="h-5 w-5 text-primary" />,
     });
-    // In a real app, this would trigger an API call or a PDF generation process.
   };
 
   const filteredApprovedRequests = useMemo(() => {
@@ -77,7 +79,7 @@ export default function InvoiceGenerationPage() {
       (request) =>
         request.id.toLowerCase().includes(term) ||
         request.itemName.toLowerCase().includes(term) ||
-        request.requesterName.toLowerCase().includes(term)
+        (request.requesterName && request.requesterName.toLowerCase().includes(term))
     );
   }, [approvedRequests, searchTerm]);
 
@@ -95,7 +97,7 @@ export default function InvoiceGenerationPage() {
               <div>
                 <CardTitle>Approved Requests for Invoicing</CardTitle>
                 <CardDescription>
-                  Displaying {filteredApprovedRequests.length} of {approvedRequests.length} requests ready for invoicing.
+                  Displaying {filteredApprovedRequests.length} of {approvedRequests.length} approved requests from the database.
                 </CardDescription>
               </div>
               <div className="relative w-full sm:w-64">
