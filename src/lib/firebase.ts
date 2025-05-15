@@ -1,12 +1,14 @@
-
-import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth } from 'firebase/auth';
-import { getFirestore, type Firestore } from 'firebase/firestore';
-import { getStorage, type FirebaseStorage } from 'firebase/storage';
+import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 // Log the API key at the very start to see if it's loaded by Next.js
 // This will log in both server-side (terminal) and client-side (browser console)
-console.log('[Firebase Debug] Raw NEXT_PUBLIC_FIREBASE_API_KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+console.log(
+  "[Firebase Debug] Raw NEXT_PUBLIC_FIREBASE_API_KEY:",
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+);
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,12 +20,17 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Optional
 };
 
-let app: FirebaseApp | null = null; // Initialize as null
-let auth: Auth | null = null;
-let db: Firestore | null = null;
-let storage: FirebaseStorage | null = null;
+let app: FirebaseApp; // Initialize as null
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
 
-const requiredKeys: (keyof typeof firebaseConfig)[] = ['apiKey', 'authDomain', 'projectId', 'appId'];
+const requiredKeys: (keyof typeof firebaseConfig)[] = [
+  "apiKey",
+  "authDomain",
+  "projectId",
+  "appId",
+];
 let allRequiredKeysPresent = true;
 let missingKeysList: string[] = [];
 
@@ -35,7 +42,9 @@ for (const key of requiredKeys) {
 }
 
 if (!allRequiredKeysPresent) {
-  const errorMessage = `[Firebase Error] Firebase configuration is missing or undefined for critical keys: ${missingKeysList.join(', ')}. 
+  const errorMessage = `[Firebase Error] Firebase configuration is missing or undefined for critical keys: ${missingKeysList.join(
+    ", "
+  )}. 
 Please ensure these are correctly set in your .env.local file (prefixed with NEXT_PUBLIC_) and that you have restarted your Next.js development server.
 Firebase will NOT be initialized.`;
   console.error(errorMessage);
@@ -43,8 +52,8 @@ Firebase will NOT be initialized.`;
   // throw new Error(errorMessage);
 } else {
   if (getApps().length === 0) {
-    console.log('[Firebase Debug] Initializing Firebase app with config:', {
-      apiKey: firebaseConfig.apiKey ? '*** (loaded)' : 'undefined', // Don't log the actual key
+    console.log("[Firebase Debug] Initializing Firebase app with config:", {
+      apiKey: firebaseConfig.apiKey ? "*** (loaded)" : "undefined", // Don't log the actual key
       authDomain: firebaseConfig.authDomain,
       projectId: firebaseConfig.projectId,
       // Add other keys if needed for debugging, but avoid logging sensitive parts
@@ -52,7 +61,7 @@ Firebase will NOT be initialized.`;
     app = initializeApp(firebaseConfig);
   } else {
     app = getApps()[0];
-    console.log('[Firebase Debug] Using existing Firebase app.');
+    console.log("[Firebase Debug] Using existing Firebase app.");
   }
 
   auth = getAuth(app);
