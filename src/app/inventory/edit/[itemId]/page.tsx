@@ -37,11 +37,8 @@ const formSchema = z.object({
   quantity: z.coerce.number().int({ message: 'Quantity must be a whole number.' }).min(0, { message: 'Quantity cannot be negative.' }),
   location: z.string().min(1, { message: 'Please select a shelf location.' }),
   description: z.string().max(500, { message: 'Description must be 500 characters or less.' }).optional().nullable(),
-  tags: z.string().max(100, { message: 'Tags must be 100 characters or less.' }).optional().nullable()
-    .transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : []),
   weight: z.coerce.number().positive({ message: 'Weight must be a positive number.' }).optional().nullable(),
   dimensions: dimensionSchema.optional().nullable(),
-  imageUrl: z.string().url({ message: 'Please enter a valid image URL.' }).optional().or(z.literal('')).nullable(),
 });
 
 type EditInventoryItemFormValues = z.infer<typeof formSchema>;
@@ -67,10 +64,8 @@ export default function EditInventoryItemPage() {
       quantity: 0,
       location: '',
       description: '',
-      tags: [],
       weight: undefined,
       dimensions: { length: undefined, width: undefined, height: undefined },
-      imageUrl: '',
     },
   });
 
@@ -106,8 +101,6 @@ export default function EditInventoryItemPage() {
             setItem(itemData);
             form.reset({
               ...itemData,
-              tags: itemData.tags ? itemData.tags.join(', ') : '',
-              imageUrl: itemData.imageUrl || '',
               description: itemData.description || '',
               weight: itemData.weight || undefined,
               dimensions: {
@@ -138,9 +131,7 @@ export default function EditInventoryItemPage() {
     
     const itemDataToUpdate: InventoryItemWrite = {
       ...data,
-      tags: data.tags || [],
       lastUpdated: serverTimestamp(),
-      imageUrl: data.imageUrl || undefined,
       description: data.description || undefined,
       weight: data.weight || undefined,
       dimensions: {
@@ -330,41 +321,6 @@ export default function EditInventoryItemPage() {
                     </FormItem>
                   )}
                 />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tags</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="e.g., organic, coffee, beans" 
-                            {...field} 
-                            value={field.value && Array.isArray(field.value) ? field.value.join(', ') : (field.value || '')}
-                            onChange={e => field.onChange(e.target.value)}
-                           />
-                        </FormControl>
-                        <FormDescription>Comma-separated tags.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="imageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image URL</FormLabel>
-                        <FormControl>
-                          <Input type="url" placeholder="https://placehold.co/200x200.png" {...field} value={field.value ?? ''} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
                 <Card>
                   <CardHeader className="pb-2">

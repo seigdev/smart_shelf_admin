@@ -9,9 +9,7 @@ export interface InventoryItem {
   quantity: number;
   location: string; // Shelf name (could be Shelf ID for better relation later)
   lastUpdated: string | Timestamp | FieldValue; // Allow string for client, Timestamp for Firestore read, FieldValue for serverTimestamp write
-  imageUrl?: string;
   description?: string;
-  tags?: string[];
   weight?: number; // in kg
   dimensions?: { // in cm
     length?: number;

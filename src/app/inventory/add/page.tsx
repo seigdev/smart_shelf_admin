@@ -37,11 +37,8 @@ const formSchema = z.object({
   quantity: z.coerce.number().int({ message: 'Quantity must be a whole number.' }).min(0, { message: 'Quantity cannot be negative.' }),
   location: z.string().min(1, { message: 'Please select a shelf location.' }),
   description: z.string().max(500, { message: 'Description must be 500 characters or less.' }).optional(),
-  tags: z.string().max(100, { message: 'Tags must be 100 characters or less.' }).optional()
-    .transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : []),
   weight: z.coerce.number().positive({ message: 'Weight must be a positive number.' }).optional(),
   dimensions: dimensionSchema.optional(),
-  imageUrl: z.string().url({ message: 'Please enter a valid image URL.' }).optional().or(z.literal('')),
 });
 
 type AddInventoryItemFormValues = z.infer<typeof formSchema>;
@@ -62,10 +59,8 @@ export default function AddInventoryItemPage() {
       quantity: 0,
       location: '',
       description: '',
-      tags: [],
       weight: undefined,
       dimensions: { length: undefined, width: undefined, height: undefined },
-      imageUrl: '',
     },
   });
 
@@ -92,9 +87,7 @@ export default function AddInventoryItemPage() {
     
     const itemData: InventoryItemWrite = {
       ...data,
-      tags: data.tags || [], // Ensure tags is an array
-      lastUpdated: serverTimestamp(), // Use server timestamp for consistency
-      imageUrl: data.imageUrl || undefined, // Handle empty string for optional URL
+      lastUpdated: serverTimestamp(),
       description: data.description || undefined,
       weight: data.weight || undefined,
       dimensions: {
@@ -256,36 +249,6 @@ export default function AddInventoryItemPage() {
                     </FormItem>
                   )}
                 />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="tags"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tags</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., organic, coffee, beans" {...field} onChange={e => field.onChange(e.target.value)} value={Array.isArray(field.value) ? field.value.join(', ') : ''} />
-                        </FormControl>
-                        <FormDescription>Comma-separated tags.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name="imageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image URL</FormLabel>
-                        <FormControl>
-                          <Input type="url" placeholder="https://placehold.co/200x200.png" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
 
                 <Card>
                   <CardHeader className="pb-2">

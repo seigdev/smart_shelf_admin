@@ -1,7 +1,6 @@
 
 'use client';
 
-import Image from 'next/image';
 import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, deleteDoc, query, orderBy, Timestamp } from 'firebase/firestore';
 
 export default function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,9 +39,16 @@ export default function InventoryPage() {
     setIsLoading(true);
     try {
       const itemsCollectionRef = collection(db, 'inventoryItems');
-      const q = query(itemsCollectionRef, orderBy('name')); // Example: order by name
+      const q = query(itemsCollectionRef, orderBy('name')); 
       const itemsSnapshot = await getDocs(q);
-      const fetchedItems = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem));
+      const fetchedItems = itemsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return { 
+          id: doc.id, 
+          ...data,
+          lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : String(data.lastUpdated) 
+        } as InventoryItem;
+      });
       setInventoryItems(fetchedItems);
     } catch (error) {
       console.error("Error fetching inventory items: ", error);
@@ -78,7 +84,7 @@ export default function InventoryPage() {
           title: 'Item Deleted',
           description: `Item "${itemToDelete.name}" has been successfully deleted from the database.`,
         });
-        fetchInventoryItems(); // Refetch items to update the list
+        fetchInventoryItems(); 
       } catch (error) {
         console.error("Error deleting item: ", error);
         toast({ title: "Error deleting item", description: "Could not delete the item from the database.", variant: "destructive" });
@@ -131,7 +137,6 @@ export default function InventoryPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[80px]">Image</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Category</TableHead>
@@ -144,16 +149,6 @@ export default function InventoryPage() {
                 <TableBody>
                   {filteredItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell>
-                        <Image
-                          src={item.imageUrl || `https://placehold.co/64x64.png`}
-                          alt={item.name}
-                          width={64}
-                          height={64}
-                          className="rounded-md object-cover aspect-square"
-                          data-ai-hint="product photo"
-                        />
-                      </TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.sku}</TableCell>
                       <TableCell>
