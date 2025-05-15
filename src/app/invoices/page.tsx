@@ -13,37 +13,58 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageTitle } from '@/components/common/page-title';
-import type { RequestItem, RequestStatus } from '@/types';
-import { placeholderRequests } from '@/lib/placeholder-data';
+import type { RequestItem } from '@/types';
 import { SidebarInset } from '@/components/ui/sidebar';
-import { FileTextIcon, MoreHorizontal, SearchIcon, AlertTriangleIcon } from 'lucide-react';
+import { FileTextIcon, SearchIcon, AlertTriangleIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 
 export default function InvoiceGenerationPage() {
   const [approvedRequests, setApprovedRequests] = useState<RequestItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate fetching data and filter for approved requests
-    const filtered = placeholderRequests.filter(req => req.status === 'Approved');
-    setApprovedRequests(filtered);
-  }, []);
+    async function fetchApprovedRequests() {
+      setIsLoading(true);
+      try {
+        const requestsCollectionRef = collection(db, 'itemRequests');
+        const q = query(
+          requestsCollectionRef, 
+          where('status', '==', 'Approved'),
+          orderBy('approvalDate', 'desc') // Order by when they were approved
+        );
+        const requestsSnapshot = await getDocs(q);
+        const fetchedRequests = requestsSnapshot.docs.map(docSnap => {
+          const data = docSnap.data();
+          return { 
+            id: docSnap.id, 
+            ...data,
+            requestDate: data.requestDate instanceof Timestamp ? data.requestDate.toDate().toISOString() : String(data.requestDate),
+            approvalDate: data.approvalDate instanceof Timestamp ? data.approvalDate.toDate().toISOString() : String(data.approvalDate),
+            lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : undefined,
+          } as RequestItem;
+        });
+        setApprovedRequests(fetchedRequests);
+      } catch (error) {
+        console.error("Error fetching approved requests: ", error);
+        toast({ title: "Error", description: "Could not fetch approved requests from database.", variant: "destructive" });
+      }
+      setIsLoading(false);
+    }
+    fetchApprovedRequests();
+  }, [toast]);
 
   const handleGenerateInvoice = (request: RequestItem) => {
-    console.log(`Generating invoice for request ${request.id}`);
+    console.log(`Simulating invoice generation for request ${request.id}`);
     toast({
-      title: 'Invoice Generation Started',
-      description: `An invoice for request ID ${request.id} (${request.itemName}) is being generated.`,
+      title: 'Invoice Generation Simulated',
+      description: `Invoice for request ID ${request.id} (${request.itemName}) would be generated here.`,
       action: <FileTextIcon className="h-5 w-5 text-primary" />,
     });
     // In a real app, this would trigger an API call or a PDF generation process.
@@ -72,7 +93,7 @@ export default function InvoiceGenerationPage() {
           <CardHeader>
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <CardTitle>Approved Requests</CardTitle>
+                <CardTitle>Approved Requests for Invoicing</CardTitle>
                 <CardDescription>
                   Displaying {filteredApprovedRequests.length} of {approvedRequests.length} requests ready for invoicing.
                 </CardDescription>
@@ -90,7 +111,11 @@ export default function InvoiceGenerationPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredApprovedRequests.length > 0 ? (
+            {isLoading ? (
+               <div className="flex justify-center items-center py-12">
+                <Loader2 className="h-16 w-16 animate-spin text-primary" />
+              </div>
+            ) : filteredApprovedRequests.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -106,12 +131,12 @@ export default function InvoiceGenerationPage() {
                 <TableBody>
                   {filteredApprovedRequests.map((request) => (
                     <TableRow key={request.id}>
-                      <TableCell className="font-mono">{request.id}</TableCell>
+                      <TableCell className="font-mono text-xs">{request.id}</TableCell>
                       <TableCell className="font-medium">{request.itemName}</TableCell>
                       <TableCell className="text-right">{request.quantityRequested}</TableCell>
                       <TableCell>{request.requesterName}</TableCell>
                       <TableCell>
-                        {request.approvalDate ? new Date(request.approvalDate).toLocaleDateString() : 'N/A'}
+                        {request.approvalDate ? new Date(request.approvalDate as string).toLocaleDateString() : 'N/A'}
                       </TableCell>
                        <TableCell>
                         <Badge variant={'default'} 
@@ -137,7 +162,7 @@ export default function InvoiceGenerationPage() {
                 <AlertTriangleIcon className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold">No Approved Requests Found</h3>
                 <p className="text-muted-foreground">
-                  There are currently no approved requests available for invoice generation.
+                  There are currently no approved requests available for invoice generation from the database.
                 </p>
                  <Link href="/requests" passHref>
                   <Button variant="link" className="mt-2">

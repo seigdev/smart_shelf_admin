@@ -7,8 +7,8 @@ export interface InventoryItem {
   sku: string;
   category: string;
   quantity: number;
-  location: string; // Shelf name (could be Shelf ID for better relation later)
-  lastUpdated: string | Timestamp | FieldValue; // Allow string for client, Timestamp for Firestore read, FieldValue for serverTimestamp write
+  location: string; // Shelf name
+  lastUpdated: string | Timestamp | FieldValue;
   description?: string;
   weight?: number; // in kg
   dimensions?: { // in cm
@@ -18,7 +18,6 @@ export interface InventoryItem {
   };
 }
 
-// Type for writing to Firestore, lastUpdated will be a serverTimestamp
 export type InventoryItemWrite = Omit<InventoryItem, 'id' | 'lastUpdated'> & {
   lastUpdated: FieldValue;
 };
@@ -39,15 +38,22 @@ export interface ShelfLocationSuggestion {
 export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface RequestItem {
-  id: string;
+  id: string; // Firestore document ID
   itemName: string;
-  itemId: string; 
+  itemId: string; // ID of the item in the inventoryItems collection
   quantityRequested: number;
   requesterName: string;
-  requesterId?: string; 
-  requestDate: string; // ISO date string
+  requestDate: Timestamp | FieldValue; // Stored as Timestamp, written with serverTimestamp()
   status: RequestStatus;
   approvedBy?: string; 
-  approvalDate?: string; 
+  approvalDate?: Timestamp | FieldValue; // Stored as Timestamp, written with serverTimestamp()
   notes?: string;
+  lastUpdated?: Timestamp | FieldValue;
 }
+
+// Type for writing new requests to Firestore
+export type RequestItemWrite = Omit<RequestItem, 'id' | 'requestDate' | 'approvalDate' | 'lastUpdated'> & {
+  requestDate: FieldValue;
+  approvalDate?: FieldValue;
+  lastUpdated?: FieldValue;
+};
