@@ -15,7 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageTitle } from '@/components/common/page-title';
-import type { RequestItem } from '@/types';
+// Import original RequestItem as FirestoreRequestItem to differentiate
+import type { RequestItem as FirestoreRequestItem, RequestStatus } from '@/types';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { FileTextIcon, SearchIcon, AlertTriangleIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -23,8 +24,16 @@ import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 
+// Define a type for display purposes where dates are strings
+type RequestItemForDisplay = Omit<FirestoreRequestItem, 'requestDate' | 'approvalDate' | 'lastUpdated'> & {
+  requestDate: string;       // Dates are strings after conversion
+  approvalDate?: string;      // Optional and string if present
+  lastUpdated?: string;       // Optional and string if present
+};
+
 export default function InvoiceGenerationPage() {
-  const [approvedRequests, setApprovedRequests] = useState<RequestItem[]>([]);
+  // Use the display-specific type for state
+  const [approvedRequests, setApprovedRequests] = useState<RequestItemForDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -34,23 +43,37 @@ export default function InvoiceGenerationPage() {
       setIsLoading(true);
       try {
         const requestsCollectionRef = collection(db, 'itemRequests');
-        // Query for requests that are 'Approved' and order them by approval date
         const q = query(
-          requestsCollectionRef, 
+          requestsCollectionRef,
           where('status', '==', 'Approved'),
-          orderBy('approvalDate', 'desc') 
+          orderBy('approvalDate', 'desc')
         );
         const requestsSnapshot = await getDocs(q);
         const fetchedRequests = requestsSnapshot.docs.map(docSnap => {
           const data = docSnap.data();
-          return { 
-            id: docSnap.id, 
-            ...data,
-            // Ensure Timestamps are converted to a serializable format if needed, or use toDate() for display
-            requestDate: data.requestDate instanceof Timestamp ? data.requestDate.toDate().toISOString() : String(data.requestDate),
-            approvalDate: data.approvalDate instanceof Timestamp ? data.approvalDate.toDate().toISOString() : String(data.approvalDate),
-            lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : undefined,
-          } as RequestItem;
+          // Explicitly construct the object for type safety and correct field mapping
+          const item: RequestItemForDisplay = {
+            id: docSnap.id,
+            itemName: data.itemName as string,
+            itemId: data.itemId as string,
+            quantityRequested: data.quantityRequested as number,
+            requesterName: data.requesterName as string,
+            status: data.status as RequestStatus, // Cast to ensure RequestStatus type
+
+            requestDate: data.requestDate instanceof Timestamp 
+                            ? data.requestDate.toDate().toISOString() 
+                            : String(data.requestDate || ''), // Ensure string, provide fallback if data.requestDate is null/undefined
+
+            approvedBy: data.approvedBy as string | undefined,
+            approvalDate: data.approvalDate instanceof Timestamp 
+                            ? data.approvalDate.toDate().toISOString() 
+                            : (data.approvalDate ? String(data.approvalDate) : undefined),
+            notes: data.notes as string | undefined,
+            lastUpdated: data.lastUpdated instanceof Timestamp 
+                            ? data.lastUpdated.toDate().toISOString() 
+                            : (data.lastUpdated ? String(data.lastUpdated) : undefined),
+          };
+          return item;
         });
         setApprovedRequests(fetchedRequests);
       } catch (error) {
@@ -62,8 +85,8 @@ export default function InvoiceGenerationPage() {
     fetchApprovedRequests();
   }, [toast]);
 
-  const handleGenerateInvoice = (request: RequestItem) => {
-    // This is a placeholder for actual invoice generation logic
+  // The handleGenerateInvoice function now accepts RequestItemForDisplay
+  const handleGenerateInvoice = (request: RequestItemForDisplay) => {
     console.log(`Simulating invoice generation for request ${request.id}`);
     toast({
       title: 'Invoice Generation Simulated',
@@ -138,10 +161,10 @@ export default function InvoiceGenerationPage() {
                       <TableCell className="text-right">{request.quantityRequested}</TableCell>
                       <TableCell>{request.requesterName}</TableCell>
                       <TableCell>
-                        {request.approvalDate ? new Date(request.approvalDate as string).toLocaleDateString() : 'N/A'}
+                        {request.approvalDate ? new Date(request.approvalDate).toLocaleDateString() : 'N/A'}
                       </TableCell>
                        <TableCell>
-                        <Badge variant={'default'} 
+                        <Badge variant={'default'}
                                className={'bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700 border-transparent'}>
                           {request.status}
                         </Badge>
