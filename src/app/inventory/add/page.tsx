@@ -85,21 +85,41 @@ export default function AddInventoryItemPage() {
   const onSubmit: SubmitHandler<AddInventoryItemFormValues> = async (data) => {
     setIsSaving(true);
     
-    const itemData: InventoryItemWrite = {
-      ...data,
+    const itemDataForFirestore: { [key: string]: any } = {
+      name: data.name,
+      sku: data.sku,
+      category: data.category,
+      quantity: data.quantity,
+      location: data.location,
       lastUpdated: serverTimestamp(),
-      description: data.description || undefined,
-      weight: data.weight || undefined,
-      dimensions: {
-        length: data.dimensions?.length || undefined,
-        width: data.dimensions?.width || undefined,
-        height: data.dimensions?.height || undefined,
-      }
     };
+
+    if (data.description && data.description.trim() !== '') {
+      itemDataForFirestore.description = data.description;
+    }
+    if (data.weight !== undefined) {
+      itemDataForFirestore.weight = data.weight;
+    }
+
+    if (data.dimensions) {
+      const dims: { [key: string]: number } = {};
+      if (data.dimensions.length !== undefined) {
+        dims.length = data.dimensions.length;
+      }
+      if (data.dimensions.width !== undefined) {
+        dims.width = data.dimensions.width;
+      }
+      if (data.dimensions.height !== undefined) {
+        dims.height = data.dimensions.height;
+      }
+      if (Object.keys(dims).length > 0) {
+        itemDataForFirestore.dimensions = dims;
+      }
+    }
     
     try {
       const itemsCollectionRef = collection(db, 'inventoryItems');
-      await addDoc(itemsCollectionRef, itemData);
+      await addDoc(itemsCollectionRef, itemDataForFirestore);
       
       toast({
         title: 'Inventory Item Added!',

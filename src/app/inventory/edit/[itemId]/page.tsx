@@ -117,7 +117,7 @@ export default function EditInventoryItemPage() {
         } catch (error) {
           console.error("Error fetching item: ", error);
           toast({ title: "Error", description: "Could not fetch item details.", variant: "destructive" });
-          setNotFound(true); // Assume not found on error
+          setNotFound(true); 
         }
         setIsFetchingItem(false);
       };
@@ -129,20 +129,58 @@ export default function EditInventoryItemPage() {
     if (!item) return;
     setIsSaving(true);
     
-    const itemDataToUpdate: InventoryItemWrite = {
-      ...data,
+    const itemDataToUpdate: { [key: string]: any } = {
+      name: data.name,
+      sku: data.sku,
+      category: data.category,
+      quantity: data.quantity,
+      location: data.location,
       lastUpdated: serverTimestamp(),
-      description: data.description || undefined,
-      weight: data.weight || undefined,
-      dimensions: {
-        length: data.dimensions?.length || undefined,
-        width: data.dimensions?.width || undefined,
-        height: data.dimensions?.height || undefined,
-      }
     };
+
+    if (data.description && data.description.trim() !== '') {
+      itemDataToUpdate.description = data.description;
+    } else {
+      // If description is empty or undefined, explicitly set to null or delete
+      // For update, often you want to remove the field or set to null
+      // To remove: delete itemDataToUpdate.description; (but updateDoc won't remove fields not present unless using FieldValue.delete())
+      // For now, setting to null if empty, assuming type allows null or it's handled by Firestore rules/converters
+      itemDataToUpdate.description = null; 
+    }
+
+    if (data.weight !== undefined) {
+      itemDataToUpdate.weight = data.weight;
+    } else {
+      itemDataToUpdate.weight = null; // or FieldValue.delete()
+    }
+
+    if (data.dimensions) {
+      const dims: { [key: string]: number } = {};
+      if (data.dimensions.length !== undefined) {
+        dims.length = data.dimensions.length;
+      }
+      if (data.dimensions.width !== undefined) {
+        dims.width = data.dimensions.width;
+      }
+      if (data.dimensions.height !== undefined) {
+        dims.height = data.dimensions.height;
+      }
+      if (Object.keys(dims).length > 0) {
+        itemDataToUpdate.dimensions = dims;
+      } else {
+        itemDataToUpdate.dimensions = null; // or FieldValue.delete()
+      }
+    } else {
+       itemDataToUpdate.dimensions = null; // or FieldValue.delete()
+    }
+
 
     try {
       const itemDocRef = doc(db, 'inventoryItems', item.id);
+      // Firestore's updateDoc merges data. To remove a field, you'd use FieldValue.delete().
+      // For simplicity here, we're setting to null if empty/undefined.
+      // Alternatively, build the object with only defined fields for a merge-update.
+      // This current approach might store nulls.
       await updateDoc(itemDocRef, itemDataToUpdate); 
       
       toast({
