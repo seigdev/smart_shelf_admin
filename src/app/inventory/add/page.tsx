@@ -6,6 +6,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,8 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { PackagePlusIcon, Loader2, CheckCircle, CornerDownLeft } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import type { Shelf } from '@/types';
+import { collection, getDocs, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import type { Shelf, InventoryItemWrite } from '@/types';
 
 const dimensionSchema = z.object({
   length: z.coerce.number().positive({ message: 'Length must be positive.' }).optional(),
@@ -34,7 +35,7 @@ const formSchema = z.object({
     .regex(/^[a-zA-Z0-9-]+$/, { message: 'SKU can only contain letters, numbers, and hyphens.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }).max(50),
   quantity: z.coerce.number().int({ message: 'Quantity must be a whole number.' }).min(0, { message: 'Quantity cannot be negative.' }),
-  location: z.string().min(1, { message: 'Please select a shelf location.' }), // Updated for dropdown
+  location: z.string().min(1, { message: 'Please select a shelf location.' }),
   description: z.string().max(500, { message: 'Description must be 500 characters or less.' }).optional(),
   tags: z.string().max(100, { message: 'Tags must be 100 characters or less.' }).optional()
     .transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : []),
@@ -46,10 +47,11 @@ const formSchema = z.object({
 type AddInventoryItemFormValues = z.infer<typeof formSchema>;
 
 export default function AddInventoryItemPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [shelvesList, setShelvesList] = useState<Shelf[]>([]);
   const [isLoadingShelves, setIsLoadingShelves] = useState(true);
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<AddInventoryItemFormValues>({
     resolver: zodResolver(formSchema),
@@ -58,7 +60,7 @@ export default function AddInventoryItemPage() {
       sku: '',
       category: '',
       quantity: 0,
-      location: '', // Will be set by Select
+      location: '',
       description: '',
       tags: [],
       weight: undefined,
@@ -86,23 +88,43 @@ export default function AddInventoryItemPage() {
   }, [toast]);
 
   const onSubmit: SubmitHandler<AddInventoryItemFormValues> = async (data) => {
-    setIsLoading(true);
-    console.log('Adding new inventory item with data:', data);
-    // Simulate API call (in a real app, you'd save to Firestore here)
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    setIsSaving(true);
     
-    toast({
-      title: 'Inventory Item Added!',
-      description: `Item "${data.name}" has been successfully added to the inventory.`,
-      variant: 'default',
-      action: (
-        <CheckCircle className="h-5 w-5 text-green-500" />
-      ),
-    });
+    const itemData: InventoryItemWrite = {
+      ...data,
+      tags: data.tags || [], // Ensure tags is an array
+      lastUpdated: serverTimestamp(), // Use server timestamp for consistency
+      imageUrl: data.imageUrl || undefined, // Handle empty string for optional URL
+      description: data.description || undefined,
+      weight: data.weight || undefined,
+      dimensions: {
+        length: data.dimensions?.length || undefined,
+        width: data.dimensions?.width || undefined,
+        height: data.dimensions?.height || undefined,
+      }
+    };
     
-    form.reset(); 
-    setIsLoading(false);
-    // Potentially navigate to the inventory list page: router.push('/inventory');
+    try {
+      const itemsCollectionRef = collection(db, 'inventoryItems');
+      await addDoc(itemsCollectionRef, itemData);
+      
+      toast({
+        title: 'Inventory Item Added!',
+        description: `Item "${data.name}" has been successfully added to the database.`,
+        variant: 'default',
+        action: (
+          <CheckCircle className="h-5 w-5 text-green-500" />
+        ),
+      });
+      
+      form.reset(); 
+      router.push('/inventory'); 
+    } catch (error) {
+      console.error("Error adding inventory item: ", error);
+      toast({ title: "Error", description: "Could not add item to the database.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -190,7 +212,7 @@ export default function AddInventoryItemPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Location* (Shelf)</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingShelves}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingShelves || isSaving}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder={isLoadingShelves ? "Loading shelves..." : "Select a shelf"} />
@@ -200,7 +222,7 @@ export default function AddInventoryItemPage() {
                             {isLoadingShelves ? (
                               <SelectItem value="loading" disabled>Loading shelves...</SelectItem>
                             ) : shelvesList.length === 0 ? (
-                              <SelectItem value="no-shelves" disabled>No shelves available. Please register a shelf first.</SelectItem>
+                              <SelectItem value="no-shelves" disabled>No shelves available. Register a shelf first.</SelectItem>
                             ) : (
                               shelvesList.map((shelf) => (
                                 <SelectItem key={shelf.id} value={shelf.name}>
@@ -257,7 +279,7 @@ export default function AddInventoryItemPage() {
                       <FormItem>
                         <FormLabel>Image URL</FormLabel>
                         <FormControl>
-                          <Input type="url" placeholder="https://example.com/image.png" {...field} />
+                          <Input type="url" placeholder="https://placehold.co/200x200.png" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -332,8 +354,8 @@ export default function AddInventoryItemPage() {
                 
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isLoading || isLoadingShelves} className="w-full sm:w-auto">
-                  {isLoading ? (
+                <Button type="submit" disabled={isSaving || isLoadingShelves} className="w-full sm:w-auto">
+                  {isSaving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <PackagePlusIcon className="mr-2 h-4 w-4" />
@@ -348,6 +370,3 @@ export default function AddInventoryItemPage() {
     </SidebarInset>
   );
 }
-
-
-    

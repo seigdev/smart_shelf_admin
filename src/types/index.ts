@@ -1,28 +1,36 @@
 
+import type { Timestamp, FieldValue } from 'firebase/firestore';
+
 export interface InventoryItem {
-  id: string;
+  id: string; // Firestore document ID
   name: string;
   sku: string;
   category: string;
   quantity: number;
-  location: string; // Shelf location (can be a reference to a Shelf ID later)
-  lastUpdated: string; // Date string
+  location: string; // Shelf name (could be Shelf ID for better relation later)
+  lastUpdated: string | Timestamp | FieldValue; // Allow string for client, Timestamp for Firestore read, FieldValue for serverTimestamp write
   imageUrl?: string;
   description?: string;
   tags?: string[];
   weight?: number; // in kg
   dimensions?: { // in cm
-    length: number;
-    width: number;
-    height: number;
+    length?: number;
+    width?: number;
+    height?: number;
   };
 }
 
+// Type for writing to Firestore, lastUpdated will be a serverTimestamp
+export type InventoryItemWrite = Omit<InventoryItem, 'id' | 'lastUpdated'> & {
+  lastUpdated: FieldValue;
+};
+
+
 export interface Shelf {
   id: string;
-  name: string; // e.g., "A1-Top", "Receiving Area - Bin 3"
-  locationDescription: string; // e.g., "Warehouse Section A, Row 1, Upper level"
-  notes?: string; // e.g., "For fragile items, max weight 20kg"
+  name: string; 
+  locationDescription: string; 
+  notes?: string; 
 }
 
 export interface ShelfLocationSuggestion {
@@ -35,14 +43,13 @@ export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
 export interface RequestItem {
   id: string;
   itemName: string;
-  itemId: string; // Should ideally link to InventoryItem.id
+  itemId: string; 
   quantityRequested: number;
   requesterName: string;
-  requesterId?: string; // Optional: Link to a User.id
+  requesterId?: string; 
   requestDate: string; // ISO date string
   status: RequestStatus;
-  approvedBy?: string; // Optional: User ID of approver
-  approvalDate?: string; // Optional: ISO date string
+  approvedBy?: string; 
+  approvalDate?: string; 
   notes?: string;
 }
-

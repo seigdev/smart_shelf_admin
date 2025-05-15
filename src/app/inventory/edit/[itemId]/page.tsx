@@ -16,10 +16,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { PageTitle } from '@/components/common/page-title';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, CornerDownLeft, AlertTriangle, SaveIcon } from 'lucide-react';
-import { placeholderInventoryItems } from '@/lib/placeholder-data';
-import type { InventoryItem } from '@/types';
+import type { InventoryItem, InventoryItemWrite, Shelf } from '@/types';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc, collection, getDocs, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 const dimensionSchema = z.object({
   length: z.coerce.number().positive({ message: 'Length must be positive.' }).optional().nullable(),
@@ -33,7 +35,7 @@ const formSchema = z.object({
     .regex(/^[a-zA-Z0-9-]+$/, { message: 'SKU can only contain letters, numbers, and hyphens.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }).max(50),
   quantity: z.coerce.number().int({ message: 'Quantity must be a whole number.' }).min(0, { message: 'Quantity cannot be negative.' }),
-  location: z.string().min(2, { message: 'Location must be at least 2 characters.' }).max(50),
+  location: z.string().min(1, { message: 'Please select a shelf location.' }),
   description: z.string().max(500, { message: 'Description must be 500 characters or less.' }).optional().nullable(),
   tags: z.string().max(100, { message: 'Tags must be 100 characters or less.' }).optional().nullable()
     .transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : []),
@@ -45,9 +47,12 @@ const formSchema = z.object({
 type EditInventoryItemFormValues = z.infer<typeof formSchema>;
 
 export default function EditInventoryItemPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(true);
   const [item, setItem] = useState<InventoryItem | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [shelvesList, setShelvesList] = useState<Shelf[]>([]);
+  const [isLoadingShelves, setIsLoadingShelves] = useState(true);
   const { toast } = useToast();
   const params = useParams();
   const router = useRouter();
@@ -70,70 +75,125 @@ export default function EditInventoryItemPage() {
   });
 
   useEffect(() => {
-    if (itemId) {
-      const foundItem = placeholderInventoryItems.find(i => i.id === itemId);
-      if (foundItem) {
-        setItem(foundItem);
-        form.reset({
-          ...foundItem,
-          tags: foundItem.tags ? foundItem.tags.join(', ') : '',
-          imageUrl: foundItem.imageUrl || '',
-          description: foundItem.description || '',
-          weight: foundItem.weight || undefined,
-          dimensions: {
-            length: foundItem.dimensions?.length || undefined,
-            width: foundItem.dimensions?.width || undefined,
-            height: foundItem.dimensions?.height || undefined,
-          }
-        });
-      } else {
-        setNotFound(true);
+    async function fetchShelvesForDropdown() {
+      setIsLoadingShelves(true);
+      try {
+        const shelvesCollectionRef = collection(db, 'shelves');
+        const q = query(shelvesCollectionRef, orderBy('name'));
+        const shelvesSnapshot = await getDocs(q);
+        const fetchedShelves = shelvesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shelf));
+        setShelvesList(fetchedShelves);
+      } catch (error) {
+        console.error("Error fetching shelves for dropdown: ", error);
+        toast({ title: "Error", description: "Could not fetch shelves.", variant: "destructive" });
       }
+      setIsLoadingShelves(false);
     }
-  }, [itemId, form]);
+    fetchShelvesForDropdown();
+  }, [toast]);
+
+  useEffect(() => {
+    if (itemId) {
+      const fetchItemData = async () => {
+        setIsFetchingItem(true);
+        setNotFound(false);
+        try {
+          const itemDocRef = doc(db, 'inventoryItems', itemId);
+          const itemSnap = await getDoc(itemDocRef);
+
+          if (itemSnap.exists()) {
+            const itemData = { id: itemSnap.id, ...itemSnap.data() } as InventoryItem;
+            setItem(itemData);
+            form.reset({
+              ...itemData,
+              tags: itemData.tags ? itemData.tags.join(', ') : '',
+              imageUrl: itemData.imageUrl || '',
+              description: itemData.description || '',
+              weight: itemData.weight || undefined,
+              dimensions: {
+                length: itemData.dimensions?.length || undefined,
+                width: itemData.dimensions?.width || undefined,
+                height: itemData.dimensions?.height || undefined,
+              }
+            });
+          } else {
+            setNotFound(true);
+            setItem(null);
+            toast({ title: "Not Found", description: "Inventory item could not be found.", variant: "destructive" });
+          }
+        } catch (error) {
+          console.error("Error fetching item: ", error);
+          toast({ title: "Error", description: "Could not fetch item details.", variant: "destructive" });
+          setNotFound(true); // Assume not found on error
+        }
+        setIsFetchingItem(false);
+      };
+      fetchItemData();
+    }
+  }, [itemId, form, toast]);
 
   const onSubmit: SubmitHandler<EditInventoryItemFormValues> = async (data) => {
-    setIsLoading(true);
-    console.log('Updating inventory item with data:', data);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!item) return;
+    setIsSaving(true);
     
-    toast({
-      title: 'Inventory Item Updated!',
-      description: `Item "${data.name}" has been successfully updated.`,
-      action: (
-        <CheckCircle className="h-5 w-5 text-green-500" />
-      ),
-    });
-    
-    setIsLoading(false);
-    // router.push('/inventory'); // Optionally navigate back
+    const itemDataToUpdate: InventoryItemWrite = {
+      ...data,
+      tags: data.tags || [],
+      lastUpdated: serverTimestamp(),
+      imageUrl: data.imageUrl || undefined,
+      description: data.description || undefined,
+      weight: data.weight || undefined,
+      dimensions: {
+        length: data.dimensions?.length || undefined,
+        width: data.dimensions?.width || undefined,
+        height: data.dimensions?.height || undefined,
+      }
+    };
+
+    try {
+      const itemDocRef = doc(db, 'inventoryItems', item.id);
+      await updateDoc(itemDocRef, itemDataToUpdate); 
+      
+      toast({
+        title: 'Inventory Item Updated!',
+        description: `Item "${data.name}" has been successfully updated in the database.`,
+        action: (
+          <CheckCircle className="h-5 w-5 text-green-500" />
+        ),
+      });
+      router.push('/inventory'); 
+    } catch (error) {
+      console.error("Error updating inventory item: ", error);
+      toast({ title: "Error", description: "Could not update item in the database.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
+  if (isFetchingItem) {
+     return (
+      <SidebarInset className="flex flex-1 flex-col">
+        <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:gap-8 md:p-6">
+          <Loader2 className="h-16 w-16 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading item details...</p>
+        </main>
+      </SidebarInset>
+    );
+  }
+  
   if (notFound) {
     return (
       <SidebarInset className="flex flex-1 flex-col">
         <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:gap-8 md:p-6">
           <AlertTriangle className="h-16 w-16 text-destructive" />
           <h2 className="text-2xl font-semibold">Item Not Found</h2>
-          <p className="text-muted-foreground">The inventory item you are looking for does not exist.</p>
+          <p className="text-muted-foreground">The inventory item you are looking for does not exist in the database.</p>
           <Link href="/inventory" passHref>
             <Button variant="outline">
               <CornerDownLeft className="mr-2 h-4 w-4" />
               Back to Inventory
             </Button>
           </Link>
-        </main>
-      </SidebarInset>
-    );
-  }
-  
-  if (!item && !notFound) {
-     return (
-      <SidebarInset className="flex flex-1 flex-col">
-        <main className="flex flex-1 flex-col items-center justify-center gap-4 p-4 md:gap-8 md:p-6">
-          <Loader2 className="h-16 w-16 animate-spin text-primary" />
-          <p className="text-muted-foreground">Loading item details...</p>
         </main>
       </SidebarInset>
     );
@@ -224,11 +284,28 @@ export default function EditInventoryItemPage() {
                     name="location"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Location*</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Shelf A1-Bottom" {...field} />
-                        </FormControl>
-                        <FormDescription>Specify where the item is stored.</FormDescription>
+                        <FormLabel>Location* (Shelf)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingShelves || isSaving}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={isLoadingShelves ? "Loading shelves..." : "Select a shelf"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {isLoadingShelves ? (
+                              <SelectItem value="loading" disabled>Loading shelves...</SelectItem>
+                            ) : shelvesList.length === 0 ? (
+                              <SelectItem value="no-shelves" disabled>No shelves available. Register a shelf first.</SelectItem>
+                            ) : (
+                              shelvesList.map((shelf) => (
+                                <SelectItem key={shelf.id} value={shelf.name}>
+                                  {shelf.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>Select the shelf where the item is stored.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -265,8 +342,6 @@ export default function EditInventoryItemPage() {
                           <Input 
                             placeholder="e.g., organic, coffee, beans" 
                             {...field} 
-                            // The transform in Zod schema handles array to string for submission,
-                            // but for display, we expect a string from form.reset/defaultValues
                             value={field.value && Array.isArray(field.value) ? field.value.join(', ') : (field.value || '')}
                             onChange={e => field.onChange(e.target.value)}
                            />
@@ -283,7 +358,7 @@ export default function EditInventoryItemPage() {
                       <FormItem>
                         <FormLabel>Image URL</FormLabel>
                         <FormControl>
-                          <Input type="url" placeholder="https://example.com/image.png" {...field} value={field.value ?? ''} />
+                          <Input type="url" placeholder="https://placehold.co/200x200.png" {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -358,8 +433,8 @@ export default function EditInventoryItemPage() {
                 
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
-                  {isLoading ? (
+                <Button type="submit" disabled={isSaving || isLoadingShelves || isFetchingItem} className="w-full sm:w-auto">
+                  {isSaving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <SaveIcon className="mr-2 h-4 w-4" />
