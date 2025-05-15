@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,8 +15,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { PageTitle } from '@/components/common/page-title';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PackagePlusIcon, Loader2, CheckCircle, CornerDownLeft } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import type { Shelf } from '@/types';
 
 const dimensionSchema = z.object({
   length: z.coerce.number().positive({ message: 'Length must be positive.' }).optional(),
@@ -30,7 +34,7 @@ const formSchema = z.object({
     .regex(/^[a-zA-Z0-9-]+$/, { message: 'SKU can only contain letters, numbers, and hyphens.' }),
   category: z.string().min(2, { message: 'Category must be at least 2 characters.' }).max(50),
   quantity: z.coerce.number().int({ message: 'Quantity must be a whole number.' }).min(0, { message: 'Quantity cannot be negative.' }),
-  location: z.string().min(2, { message: 'Location must be at least 2 characters.' }).max(50),
+  location: z.string().min(1, { message: 'Please select a shelf location.' }), // Updated for dropdown
   description: z.string().max(500, { message: 'Description must be 500 characters or less.' }).optional(),
   tags: z.string().max(100, { message: 'Tags must be 100 characters or less.' }).optional()
     .transform(val => val ? val.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : []),
@@ -43,6 +47,8 @@ type AddInventoryItemFormValues = z.infer<typeof formSchema>;
 
 export default function AddInventoryItemPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [shelvesList, setShelvesList] = useState<Shelf[]>([]);
+  const [isLoadingShelves, setIsLoadingShelves] = useState(true);
   const { toast } = useToast();
 
   const form = useForm<AddInventoryItemFormValues>({
@@ -52,7 +58,7 @@ export default function AddInventoryItemPage() {
       sku: '',
       category: '',
       quantity: 0,
-      location: '',
+      location: '', // Will be set by Select
       description: '',
       tags: [],
       weight: undefined,
@@ -61,10 +67,28 @@ export default function AddInventoryItemPage() {
     },
   });
 
+  useEffect(() => {
+    async function fetchShelvesForDropdown() {
+      setIsLoadingShelves(true);
+      try {
+        const shelvesCollectionRef = collection(db, 'shelves');
+        const q = query(shelvesCollectionRef, orderBy('name'));
+        const shelvesSnapshot = await getDocs(q);
+        const fetchedShelves = shelvesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shelf));
+        setShelvesList(fetchedShelves);
+      } catch (error) {
+        console.error("Error fetching shelves for dropdown: ", error);
+        toast({ title: "Error", description: "Could not fetch shelves.", variant: "destructive" });
+      }
+      setIsLoadingShelves(false);
+    }
+    fetchShelvesForDropdown();
+  }, [toast]);
+
   const onSubmit: SubmitHandler<AddInventoryItemFormValues> = async (data) => {
     setIsLoading(true);
     console.log('Adding new inventory item with data:', data);
-    // Simulate API call
+    // Simulate API call (in a real app, you'd save to Firestore here)
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     toast({
@@ -165,11 +189,28 @@ export default function AddInventoryItemPage() {
                     name="location"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Location*</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Shelf A1-Bottom" {...field} />
-                        </FormControl>
-                        <FormDescription>Specify where the item is stored.</FormDescription>
+                        <FormLabel>Location* (Shelf)</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingShelves}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={isLoadingShelves ? "Loading shelves..." : "Select a shelf"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {isLoadingShelves ? (
+                              <SelectItem value="loading" disabled>Loading shelves...</SelectItem>
+                            ) : shelvesList.length === 0 ? (
+                              <SelectItem value="no-shelves" disabled>No shelves available. Please register a shelf first.</SelectItem>
+                            ) : (
+                              shelvesList.map((shelf) => (
+                                <SelectItem key={shelf.id} value={shelf.name}>
+                                  {shelf.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>Select the shelf where the item is stored.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -291,7 +332,7 @@ export default function AddInventoryItemPage() {
                 
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                <Button type="submit" disabled={isLoading || isLoadingShelves} className="w-full sm:w-auto">
                   {isLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -307,3 +348,6 @@ export default function AddInventoryItemPage() {
     </SidebarInset>
   );
 }
+
+
+    
