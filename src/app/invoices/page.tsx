@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageTitle } from '@/components/common/page-title';
-import type { ItemRequest, ItemRequestDisplay, RequestStatus } from '@/types';
+import type { ItemRequestDisplay, RequestStatus } from '@/types'; // ItemRequestDisplay now has 'requests' field
 import { SidebarInset } from '@/components/ui/sidebar';
 import { FileTextIcon, SearchIcon, AlertTriangleIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -42,12 +42,12 @@ export default function InvoiceGenerationPage() {
         );
         const requestsSnapshot = await getDocs(q);
         const fetchedRequests = requestsSnapshot.docs.map(docSnap => {
-          const data = docSnap.data() as Omit<ItemRequest, 'id'>;
+          const data = docSnap.data();
           const item: ItemRequestDisplay = {
             id: docSnap.id,
             requesterName: data.requesterName as string,
             status: data.status as RequestStatus,
-            items: data.items || [],
+            requests: data.requests || [], // Changed from 'items' to 'requests'
 
             requestDate: data.requestDate instanceof Timestamp
                             ? data.requestDate.toDate().toISOString()
@@ -74,7 +74,6 @@ export default function InvoiceGenerationPage() {
                 variant: "destructive",
                 duration: 10000,
             });
-            // Log the full error to console so the dev can click the link
             console.error("Firestore Index Creation Link (from error object):", error);
         } else {
             toast({ title: "Error", description: "Could not fetch approved requests from database.", variant: "destructive" });
@@ -86,7 +85,7 @@ export default function InvoiceGenerationPage() {
   }, [toast]);
 
   const handleGenerateInvoice = (request: ItemRequestDisplay) => {
-    const itemsList = request.items.map(item => `${item.itemName} (Qty: ${item.quantityRequested})`).join(', ');
+    const itemsList = request.requests.map(item => `${item.itemName} (Qty: ${item.quantityRequested})`).join(', '); // Changed from 'items' to 'requests'
     console.log(`Simulating invoice generation for request ${request.id} containing: ${itemsList}`);
     toast({
       title: 'Invoice Generation Simulated',
@@ -101,7 +100,7 @@ export default function InvoiceGenerationPage() {
     return approvedRequests.filter(
       (request) =>
         request.id.toLowerCase().includes(term) ||
-        (request.items[0]?.itemName.toLowerCase() || '').includes(term) ||
+        (request.requests[0]?.itemName.toLowerCase() || '').includes(term) || // Changed from 'items' to 'requests'
         request.requesterName.toLowerCase().includes(term)
     );
   }, [approvedRequests, searchTerm]);
@@ -158,10 +157,10 @@ export default function InvoiceGenerationPage() {
                     <TableRow key={request.id}>
                       <TableCell className="font-mono text-xs">{request.id}</TableCell>
                       <TableCell className="font-medium">
-                        {request.items[0]?.itemName || 'N/A'}
-                        {request.items.length > 1 && ` (+${request.items.length - 1} more)`}
+                        {request.requests[0]?.itemName || 'N/A'} 
+                        {request.requests.length > 1 && ` (+${request.requests.length - 1} more)`}
                       </TableCell>
-                      <TableCell className="text-right">{request.items[0]?.quantityRequested || 'N/A'}</TableCell>
+                      <TableCell className="text-right">{request.requests[0]?.quantityRequested || 'N/A'}</TableCell>
                       <TableCell>{request.requesterName}</TableCell>
                       <TableCell>
                         {request.approvalDate ? new Date(request.approvalDate).toLocaleDateString() : 'N/A'}

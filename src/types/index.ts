@@ -50,7 +50,7 @@ export interface ItemRequest {
   requesterName: string;
   requestDate: Timestamp | FieldValue | string; // Stored as Timestamp, written with serverTimestamp(), string for display
   status: RequestStatus;
-  items: RequestedItemLine[]; // Array of items being requested
+  requests: RequestedItemLine[]; // Array of items being requested (changed from 'items' to 'requests')
 
   approvedBy?: string;
   approvalDate?: Timestamp | FieldValue | string; // Stored as Timestamp, string for display
@@ -73,35 +73,9 @@ export interface ItemRequestDisplay extends Omit<ItemRequest, 'requestDate' | 'a
   requesterName: string;
   requestDate: string; // Converted to string for display
   status: RequestStatus;
-  items: RequestedItemLine[];
+  requests: RequestedItemLine[]; // (changed from 'items' to 'requests')
   approvedBy?: string;
   approvalDate?: string; // Converted to string for display
   notes?: string;
   lastUpdated?: string; // Converted to string for display
 }
-
-// Previous single request item type, retained for reference or if needed during transition, but new structure uses ItemRequest.
-// This is now effectively replaced by ItemRequest containing RequestedItemLine[].
-// export interface RequestItem {
-//   id: string; // Firestore document ID
-//   itemName: string;
-//   itemId: string; // ID of the item in the inventoryItems collection
-//   quantityRequested: number;
-//   requesterName: string;
-//   requestDate: Timestamp | FieldValue; // Stored as Timestamp, written with serverTimestamp()
-//   status: RequestStatus;
-//   approvedBy?: string;
-//   approvalDate?: Timestamp | FieldValue; // Stored as Timestamp, written with serverTimestamp()
-//   notes?: string;
-//   lastUpdated?: Timestamp | FieldValue;
-// }
-// export type RequestItemWrite = Omit<RequestItem, 'id' | 'requestDate' | 'approvalDate' | 'lastUpdated'> & {
-//   requestDate: FieldValue;
-//   approvalDate?: FieldValue;
-//   lastUpdated?: FieldValue;
-// };
-// type RequestItemForDisplay = Omit<RequestItem, 'requestDate' | 'approvalDate' | 'lastUpdated'> & {
-//   requestDate: string;       // Dates are strings after conversion
-//   approvalDate?: string;      // Optional and string if present
-//   lastUpdated?: string;       // Optional and string if present
-// };

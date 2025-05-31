@@ -85,7 +85,7 @@ export default function NewRequestPage() {
     const requestDataForFirestore: ItemRequestWrite = {
       requesterName: data.requesterName,
       status: 'Pending',
-      items: [requestedItemLine], // Embed the single item in the 'items' array
+      requests: [requestedItemLine], // Changed 'items' to 'requests'
       requestDate: serverTimestamp(),
       lastUpdated: serverTimestamp(),
     };

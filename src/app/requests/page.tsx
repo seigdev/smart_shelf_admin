@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageTitle } from '@/components/common/page-title';
-import type { ItemRequest, ItemRequestDisplay, RequestStatus } from '@/types';
+import type { ItemRequestDisplay, RequestStatus } from '@/types';
 import { SidebarInset } from '@/components/ui/sidebar';
 import {
   CheckCircle2,
@@ -54,7 +54,7 @@ const statusOptions: { value: RequestStatus | 'all'; label: string }[] = [
 ];
 
 export default function RequestsPage() {
-  const [requests, setRequests] = useState<ItemRequestDisplay[]>([]);
+  const [requestsData, setRequestsData] = useState<ItemRequestDisplay[]>([]); // Renamed for clarity
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState<string | null>(null); // Stores ID of item being updated
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,17 +68,20 @@ export default function RequestsPage() {
       const q = query(requestsCollectionRef, orderBy('requestDate', 'desc'));
       const requestsSnapshot = await getDocs(q);
       const fetchedRequests = requestsSnapshot.docs.map(docSnap => {
-        const data = docSnap.data() as Omit<ItemRequest, 'id'>; // Cast to base type excluding ID
+        const data = docSnap.data();
         return {
           id: docSnap.id,
-          ...data,
+          requesterName: data.requesterName,
+          status: data.status,
+          requests: data.requests || [], // Changed from 'items'
           requestDate: data.requestDate instanceof Timestamp ? data.requestDate.toDate().toISOString() : String(data.requestDate || ''),
+          approvedBy: data.approvedBy,
           approvalDate: data.approvalDate instanceof Timestamp ? data.approvalDate.toDate().toISOString() : (data.approvalDate ? String(data.approvalDate) : undefined),
+          notes: data.notes,
           lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : (data.lastUpdated ? String(data.lastUpdated) : undefined),
-          items: data.items || [], // Ensure items array exists
         } as ItemRequestDisplay;
       });
-      setRequests(fetchedRequests);
+      setRequestsData(fetchedRequests);
     } catch (error) {
       console.error("Error fetching requests: ", error);
       toast({ title: "Error", description: "Could not fetch requests from database.", variant: "destructive" });
@@ -121,21 +124,21 @@ export default function RequestsPage() {
 
 
   const filteredRequests = useMemo(() => {
-    return requests
+    return requestsData
       .filter((request) => {
         if (statusFilter === 'all') return true;
         return request.status === statusFilter;
       })
       .filter((request) => {
         const term = searchTerm.toLowerCase();
-        const firstItemName = request.items[0]?.itemName.toLowerCase() || '';
+        const firstItemName = request.requests[0]?.itemName.toLowerCase() || ''; // Changed from 'items'
         return (
           request.id.toLowerCase().includes(term) ||
-          firstItemName.includes(term) || // Search by first item name
+          firstItemName.includes(term) || 
           request.requesterName.toLowerCase().includes(term)
         );
       });
-  }, [requests, searchTerm, statusFilter]);
+  }, [requestsData, searchTerm, statusFilter]);
 
   const getStatusBadgeVariant = (status: RequestStatus) => {
     switch (status) {
@@ -157,7 +160,7 @@ export default function RequestsPage() {
       case 'Approved':
          return 'bg-green-500 hover:bg-green-600 text-white dark:bg-green-600 dark:hover:bg-green-700 border-transparent';
       default:
-        return ''; // For Rejected, the 'destructive' variant handles styling
+        return ''; 
     }
   };
 
@@ -180,7 +183,7 @@ export default function RequestsPage() {
               <div>
                 <CardTitle>All Requests</CardTitle>
                 <CardDescription>
-                  Displaying {filteredRequests.length} of {requests.length} requests.
+                  Displaying {filteredRequests.length} of {requestsData.length} requests.
                 </CardDescription>
               </div>
               <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
@@ -236,10 +239,10 @@ export default function RequestsPage() {
                     <TableRow key={request.id}>
                       <TableCell className="font-mono text-xs">{request.id}</TableCell>
                       <TableCell className="font-medium">
-                        {request.items[0]?.itemName || 'N/A'}
-                        {request.items.length > 1 && ` (+${request.items.length - 1} more)`}
+                        {request.requests[0]?.itemName || 'N/A'}
+                        {request.requests.length > 1 && ` (+${request.requests.length - 1} more)`}
                       </TableCell>
-                      <TableCell className="text-right">{request.items[0]?.quantityRequested || 'N/A'}</TableCell>
+                      <TableCell className="text-right">{request.requests[0]?.quantityRequested || 'N/A'}</TableCell>
                       <TableCell>{request.requesterName}</TableCell>
                       <TableCell>{request.requestDate ? new Date(request.requestDate).toLocaleDateString() : 'N/A'}</TableCell>
                       <TableCell>
@@ -259,7 +262,7 @@ export default function RequestsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => alert(`Viewing details for ${request.id} (Not implemented yet). Items: ${request.items.map(i => `${i.itemName} (x${i.quantityRequested})`).join(', ')}`)}>
+                              <DropdownMenuItem onClick={() => alert(`Viewing details for ${request.id} (Not implemented yet). Items: ${request.requests.map(i => `${i.itemName} (x${i.quantityRequested})`).join(', ')}`)}>
                                 View Details
                               </DropdownMenuItem>
                               {request.status === 'Pending' && (
@@ -290,7 +293,7 @@ export default function RequestsPage() {
                 <p className="text-muted-foreground">
                   {searchTerm || statusFilter !== 'all' ? "Try adjusting your search or filter criteria." : "There are no requests matching the current criteria."}
                 </p>
-                {!(searchTerm || statusFilter !== 'all') && requests.length === 0 && (
+                {!(searchTerm || statusFilter !== 'all') && requestsData.length === 0 && (
                    <Link href="/requests/new" passHref>
                      <Button className="mt-4">
                        <PlusCircleIcon className="mr-2 h-4 w-4" />
