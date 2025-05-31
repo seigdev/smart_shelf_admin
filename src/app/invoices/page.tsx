@@ -15,8 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageTitle } from '@/components/common/page-title';
-// Import original RequestItem as FirestoreRequestItem to differentiate
-import type { RequestItem as FirestoreRequestItem, RequestStatus } from '@/types';
+import type { ItemRequest, ItemRequestDisplay, RequestStatus } from '@/types';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { FileTextIcon, SearchIcon, AlertTriangleIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,16 +23,9 @@ import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 
-// Define a type for display purposes where dates are strings
-type RequestItemForDisplay = Omit<FirestoreRequestItem, 'requestDate' | 'approvalDate' | 'lastUpdated'> & {
-  requestDate: string;       // Dates are strings after conversion
-  approvalDate?: string;      // Optional and string if present
-  lastUpdated?: string;       // Optional and string if present
-};
 
 export default function InvoiceGenerationPage() {
-  // Use the display-specific type for state
-  const [approvedRequests, setApprovedRequests] = useState<RequestItemForDisplay[]>([]);
+  const [approvedRequests, setApprovedRequests] = useState<ItemRequestDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
@@ -50,27 +42,24 @@ export default function InvoiceGenerationPage() {
         );
         const requestsSnapshot = await getDocs(q);
         const fetchedRequests = requestsSnapshot.docs.map(docSnap => {
-          const data = docSnap.data();
-          // Explicitly construct the object for type safety and correct field mapping
-          const item: RequestItemForDisplay = {
+          const data = docSnap.data() as Omit<ItemRequest, 'id'>;
+          const item: ItemRequestDisplay = {
             id: docSnap.id,
-            itemName: data.itemName as string,
-            itemId: data.itemId as string,
-            quantityRequested: data.quantityRequested as number,
             requesterName: data.requesterName as string,
-            status: data.status as RequestStatus, // Cast to ensure RequestStatus type
+            status: data.status as RequestStatus,
+            items: data.items || [],
 
-            requestDate: data.requestDate instanceof Timestamp 
-                            ? data.requestDate.toDate().toISOString() 
-                            : String(data.requestDate || ''), // Ensure string, provide fallback if data.requestDate is null/undefined
+            requestDate: data.requestDate instanceof Timestamp
+                            ? data.requestDate.toDate().toISOString()
+                            : String(data.requestDate || ''),
 
             approvedBy: data.approvedBy as string | undefined,
-            approvalDate: data.approvalDate instanceof Timestamp 
-                            ? data.approvalDate.toDate().toISOString() 
+            approvalDate: data.approvalDate instanceof Timestamp
+                            ? data.approvalDate.toDate().toISOString()
                             : (data.approvalDate ? String(data.approvalDate) : undefined),
             notes: data.notes as string | undefined,
-            lastUpdated: data.lastUpdated instanceof Timestamp 
-                            ? data.lastUpdated.toDate().toISOString() 
+            lastUpdated: data.lastUpdated instanceof Timestamp
+                            ? data.lastUpdated.toDate().toISOString()
                             : (data.lastUpdated ? String(data.lastUpdated) : undefined),
           };
           return item;
@@ -78,19 +67,30 @@ export default function InvoiceGenerationPage() {
         setApprovedRequests(fetchedRequests);
       } catch (error) {
         console.error("Error fetching approved requests: ", error);
-        toast({ title: "Error", description: "Could not fetch approved requests from database.", variant: "destructive" });
+        if (error instanceof Error && error.message.includes("requires an index")) {
+            toast({
+                title: "Firestore Index Required",
+                description: "A Firestore index is needed for this query. Please check the browser console for a link to create it.",
+                variant: "destructive",
+                duration: 10000,
+            });
+            // Log the full error to console so the dev can click the link
+            console.error("Firestore Index Creation Link (from error object):", error);
+        } else {
+            toast({ title: "Error", description: "Could not fetch approved requests from database.", variant: "destructive" });
+        }
       }
       setIsLoading(false);
     }
     fetchApprovedRequests();
   }, [toast]);
 
-  // The handleGenerateInvoice function now accepts RequestItemForDisplay
-  const handleGenerateInvoice = (request: RequestItemForDisplay) => {
-    console.log(`Simulating invoice generation for request ${request.id}`);
+  const handleGenerateInvoice = (request: ItemRequestDisplay) => {
+    const itemsList = request.items.map(item => `${item.itemName} (Qty: ${item.quantityRequested})`).join(', ');
+    console.log(`Simulating invoice generation for request ${request.id} containing: ${itemsList}`);
     toast({
       title: 'Invoice Generation Simulated',
-      description: `Invoice for request ID ${request.id} (${request.itemName}) would be generated here.`,
+      description: `Invoice for request ID ${request.id} for items: ${itemsList} would be generated here.`,
       action: <FileTextIcon className="h-5 w-5 text-primary" />,
     });
   };
@@ -101,8 +101,8 @@ export default function InvoiceGenerationPage() {
     return approvedRequests.filter(
       (request) =>
         request.id.toLowerCase().includes(term) ||
-        request.itemName.toLowerCase().includes(term) ||
-        (request.requesterName && request.requesterName.toLowerCase().includes(term))
+        (request.items[0]?.itemName.toLowerCase() || '').includes(term) ||
+        request.requesterName.toLowerCase().includes(term)
     );
   }, [approvedRequests, searchTerm]);
 
@@ -120,7 +120,7 @@ export default function InvoiceGenerationPage() {
               <div>
                 <CardTitle>Approved Requests for Invoicing</CardTitle>
                 <CardDescription>
-                  Displaying {filteredApprovedRequests.length} of {approvedRequests.length} approved requests from the database.
+                  Displaying {filteredApprovedRequests.length} of {approvedRequests.length} approved requests.
                 </CardDescription>
               </div>
               <div className="relative w-full sm:w-64">
@@ -145,8 +145,8 @@ export default function InvoiceGenerationPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Request ID</TableHead>
-                    <TableHead>Item Name</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead>Item(s)</TableHead>
+                    <TableHead className="text-right">Quantity (First Item)</TableHead>
                     <TableHead>Requester</TableHead>
                     <TableHead>Approval Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -157,8 +157,11 @@ export default function InvoiceGenerationPage() {
                   {filteredApprovedRequests.map((request) => (
                     <TableRow key={request.id}>
                       <TableCell className="font-mono text-xs">{request.id}</TableCell>
-                      <TableCell className="font-medium">{request.itemName}</TableCell>
-                      <TableCell className="text-right">{request.quantityRequested}</TableCell>
+                      <TableCell className="font-medium">
+                        {request.items[0]?.itemName || 'N/A'}
+                        {request.items.length > 1 && ` (+${request.items.length - 1} more)`}
+                      </TableCell>
+                      <TableCell className="text-right">{request.items[0]?.quantityRequested || 'N/A'}</TableCell>
                       <TableCell>{request.requesterName}</TableCell>
                       <TableCell>
                         {request.approvalDate ? new Date(request.approvalDate).toLocaleDateString() : 'N/A'}
@@ -187,7 +190,7 @@ export default function InvoiceGenerationPage() {
                 <AlertTriangleIcon className="h-16 w-16 text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold">No Approved Requests Found</h3>
                 <p className="text-muted-foreground">
-                  There are currently no approved requests available for invoice generation from the database.
+                  There are currently no approved requests available for invoice generation.
                 </p>
                  <Link href="/requests" passHref>
                   <Button variant="link" className="mt-2">
