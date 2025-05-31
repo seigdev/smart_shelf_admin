@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, type SubmitHandler } from 'react-hook-form';
+import { useForm, type SubmitHandler, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
@@ -17,16 +17,20 @@ import { SidebarInset } from '@/components/ui/sidebar';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { PlusSquareIcon, Loader2, CheckCircle, CornerDownLeft } from 'lucide-react';
+import { PlusSquareIcon, Loader2, CheckCircle, CornerDownLeft, Trash2Icon, PlusCircleIcon } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import type { InventoryItem, ItemRequestWrite, RequestedItemLine } from '@/types';
 
-const formSchema = z.object({
+const requestedItemSchema = z.object({
   selectedItemId: z.string().min(1, { message: 'Please select an item.' }),
-  quantityRequested: z.coerce.number().int().positive({ message: 'Quantity must be a positive whole number.' }),
+  quantityRequested: z.coerce.number().int().positive({ message: 'Quantity must be positive.' }),
+});
+
+const formSchema = z.object({
   requesterName: z.string().min(2, { message: 'Requester name must be at least 2 characters.' }).max(100),
   notes: z.string().max(500, { message: 'Notes must be 500 characters or less.' }).optional(),
+  requestedItemsArray: z.array(requestedItemSchema).min(1, { message: 'Please add at least one item to the request.' }),
 });
 
 type NewRequestFormValues = z.infer<typeof formSchema>;
@@ -41,11 +45,15 @@ export default function NewRequestPage() {
   const form = useForm<NewRequestFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      selectedItemId: '',
-      quantityRequested: 1,
       requesterName: '',
       notes: '',
+      requestedItemsArray: [{ selectedItemId: '', quantityRequested: 1 }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "requestedItemsArray"
   });
 
   useEffect(() => {
@@ -69,23 +77,31 @@ export default function NewRequestPage() {
   const onSubmit: SubmitHandler<NewRequestFormValues> = async (data) => {
     setIsSaving(true);
 
-    const selectedItem = inventoryList.find(item => item.id === data.selectedItemId);
-    if (!selectedItem) {
-      toast({ title: "Error", description: "Selected item not found.", variant: "destructive" });
-      setIsSaving(false);
-      return;
+    const finalRequestedItems: RequestedItemLine[] = [];
+    for (const item of data.requestedItemsArray) {
+      const selectedInventoryItem = inventoryList.find(invItem => invItem.id === item.selectedItemId);
+      if (!selectedInventoryItem) {
+        toast({ title: "Error", description: `Selected item with ID ${item.selectedItemId} not found in inventory list.`, variant: "destructive" });
+        setIsSaving(false);
+        return;
+      }
+      finalRequestedItems.push({
+        itemId: selectedInventoryItem.id,
+        itemName: selectedInventoryItem.name,
+        quantityRequested: item.quantityRequested,
+      });
     }
 
-    const requestedItemLine: RequestedItemLine = {
-      itemId: selectedItem.id,
-      itemName: selectedItem.name,
-      quantityRequested: data.quantityRequested,
-    };
+    if (finalRequestedItems.length === 0) {
+        toast({ title: "Error", description: "No valid items were added to the request.", variant: "destructive" });
+        setIsSaving(false);
+        return;
+    }
 
     const requestDataForFirestore: ItemRequestWrite = {
       requesterName: data.requesterName,
       status: 'Pending',
-      requests: [requestedItemLine], // Changed 'items' to 'requests'
+      requests: finalRequestedItems,
       requestDate: serverTimestamp(),
       lastUpdated: serverTimestamp(),
     };
@@ -100,7 +116,7 @@ export default function NewRequestPage() {
 
       toast({
         title: 'Request Submitted!',
-        description: `Request for "${selectedItem.name}" has been successfully submitted.`,
+        description: `Your request for ${finalRequestedItems.length} item(s) has been successfully submitted.`,
         variant: 'default',
         action: (
           <CheckCircle className="h-5 w-5 text-green-500" />
@@ -132,12 +148,12 @@ export default function NewRequestPage() {
           </Link>
         </PageTitle>
 
-        <Card className="max-w-2xl mx-auto w-full">
+        <Card className="max-w-3xl mx-auto w-full">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <CardHeader>
                 <CardTitle>Request Details</CardTitle>
-                <CardDescription>Enter requester information and the item needed.</CardDescription>
+                <CardDescription>Enter requester information and the items needed.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <FormField
@@ -153,50 +169,85 @@ export default function NewRequestPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="selectedItemId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Item to Request*</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoadingInventory || isSaving}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={isLoadingInventory ? "Loading inventory..." : "Select an item"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {isLoadingInventory ? (
-                            <SelectItem value="loading" disabled>Loading inventory...</SelectItem>
-                          ) : inventoryList.length === 0 ? (
-                            <SelectItem value="no-items" disabled>No inventory items available.</SelectItem>
-                          ) : (
-                            inventoryList.map((item) => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.name} (SKU: {item.sku}, Stock: {item.quantity})
-                              </SelectItem>
-                            ))
+
+                <div className="space-y-4">
+                  <Label>Requested Items*</Label>
+                  {fields.map((field, index) => (
+                    <Card key={field.id} className="p-4 space-y-3 bg-secondary/50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`requestedItemsArray.${index}.selectedItemId`}
+                          render={({ field: itemField }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Item {index + 1}</FormLabel>
+                              <Select onValueChange={itemField.onChange} defaultValue={itemField.value} disabled={isLoadingInventory || isSaving}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={isLoadingInventory ? "Loading inventory..." : "Select an item"} />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {isLoadingInventory ? (
+                                    <SelectItem value="loading" disabled>Loading inventory...</SelectItem>
+                                  ) : inventoryList.length === 0 ? (
+                                    <SelectItem value="no-items" disabled>No inventory items available.</SelectItem>
+                                  ) : (
+                                    inventoryList.map((item) => (
+                                      <SelectItem key={item.id} value={item.id}>
+                                        {item.name} (SKU: {item.sku}, Stock: {item.quantity})
+                                      </SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
                           )}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>Choose the item you want to request.</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="quantityRequested"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantity Requested*</FormLabel>
-                      <FormControl>
-                        <Input type="number" placeholder="e.g., 5" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`requestedItemsArray.${index}.quantityRequested`}
+                          render={({ field: qtyField }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Quantity {index + 1}</FormLabel>
+                              <FormControl>
+                                <Input type="number" placeholder="e.g., 5" {...qtyField} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      {fields.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => remove(index)}
+                          disabled={isSaving}
+                          className="w-full sm:w-auto"
+                        >
+                          <Trash2Icon className="mr-2 h-4 w-4" />
+                          Remove Item {index + 1}
+                        </Button>
+                      )}
+                    </Card>
+                  ))}
+                  <FormMessage>{form.formState.errors.requestedItemsArray?.message}</FormMessage>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => append({ selectedItemId: '', quantityRequested: 1 })}
+                    disabled={isSaving || isLoadingInventory}
+                    className="w-full sm:w-auto"
+                  >
+                    <PlusCircleIcon className="mr-2 h-4 w-4" />
+                    Add Another Item
+                  </Button>
+                </div>
+
                 <FormField
                   control={form.control}
                   name="notes"
@@ -232,3 +283,4 @@ export default function NewRequestPage() {
     </SidebarInset>
   );
 }
+
