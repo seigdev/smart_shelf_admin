@@ -29,8 +29,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { PageTitle } from '@/components/common/page-title';
-import type { ItemRequestDisplay, RequestStatus } from '@/types';
+import type { ItemRequestDisplay, RequestStatus, RequestedItemLine } from '@/types';
 import { SidebarInset } from '@/components/ui/sidebar';
 import {
   CheckCircle2,
@@ -40,7 +49,8 @@ import {
   PlusCircleIcon,
   ListFilter,
   Inbox,
-  Loader2
+  Loader2,
+  EyeIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -54,12 +64,15 @@ const statusOptions: { value: RequestStatus | 'all'; label: string }[] = [
 ];
 
 export default function RequestsPage() {
-  const [requestsData, setRequestsData] = useState<ItemRequestDisplay[]>([]); // Renamed for clarity
+  const [requestsData, setRequestsData] = useState<ItemRequestDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState<string | null>(null); // Stores ID of item being updated
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('all');
   const { toast } = useToast();
+
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [selectedRequestDetails, setSelectedRequestDetails] = useState<ItemRequestDisplay | null>(null);
 
   async function fetchRequests() {
     setIsLoading(true);
@@ -73,7 +86,7 @@ export default function RequestsPage() {
           id: docSnap.id,
           requesterName: data.requesterName,
           status: data.status,
-          requests: data.requests || [], // Changed from 'items'
+          requests: data.requests || [],
           requestDate: data.requestDate instanceof Timestamp ? data.requestDate.toDate().toISOString() : String(data.requestDate || ''),
           approvedBy: data.approvedBy,
           approvalDate: data.approvalDate instanceof Timestamp ? data.approvalDate.toDate().toISOString() : (data.approvalDate ? String(data.approvalDate) : undefined),
@@ -103,7 +116,7 @@ export default function RequestsPage() {
       };
 
       if (newStatus === 'Approved') {
-        updateData.approvedBy = 'Admin'; // Replace with actual user later
+        updateData.approvedBy = 'Admin'; 
         updateData.approvalDate = serverTimestamp();
       }
 
@@ -113,13 +126,18 @@ export default function RequestsPage() {
         title: `Request ${newStatus}`,
         description: `Request ID ${requestId} has been ${newStatus.toLowerCase()}.`,
       });
-      fetchRequests(); // Refetch to show updated status
+      fetchRequests(); 
     } catch (error) {
       console.error(`Error updating request ${requestId} to ${newStatus}: `, error);
       toast({ title: "Error", description: `Could not update request status.`, variant: "destructive" });
     } finally {
       setIsUpdating(null);
     }
+  };
+
+  const openDetailsModal = (request: ItemRequestDisplay) => {
+    setSelectedRequestDetails(request);
+    setIsDetailsModalOpen(true);
   };
 
 
@@ -131,7 +149,7 @@ export default function RequestsPage() {
       })
       .filter((request) => {
         const term = searchTerm.toLowerCase();
-        const firstItemName = request.requests[0]?.itemName.toLowerCase() || ''; // Changed from 'items'
+        const firstItemName = request.requests[0]?.itemName.toLowerCase() || ''; 
         return (
           request.id.toLowerCase().includes(term) ||
           firstItemName.includes(term) || 
@@ -262,7 +280,8 @@ export default function RequestsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => alert(`Viewing details for ${request.id} (Not implemented yet). Items: ${request.requests.map(i => `${i.itemName} (x${i.quantityRequested})`).join(', ')}`)}>
+                              <DropdownMenuItem onClick={() => openDetailsModal(request)}>
+                                <EyeIcon className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
                               {request.status === 'Pending' && (
@@ -306,6 +325,83 @@ export default function RequestsPage() {
           </CardContent>
         </Card>
       </main>
+
+      {selectedRequestDetails && (
+        <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Request Details: <span className="font-mono text-sm">{selectedRequestDetails.id}</span></DialogTitle>
+              <DialogDescription>
+                Full details for the selected item request.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div className="grid grid-cols-[120px_1fr] items-center gap-x-4 gap-y-2">
+                <span className="text-sm font-medium text-muted-foreground">Requester:</span>
+                <span className="text-sm">{selectedRequestDetails.requesterName}</span>
+                
+                <span className="text-sm font-medium text-muted-foreground">Request Date:</span>
+                <span className="text-sm">{selectedRequestDetails.requestDate ? new Date(selectedRequestDetails.requestDate).toLocaleString() : 'N/A'}</span>
+                
+                <span className="text-sm font-medium text-muted-foreground">Status:</span>
+                <Badge variant={getStatusBadgeVariant(selectedRequestDetails.status)} className={getStatusBadgeClassName(selectedRequestDetails.status)}>
+                  {selectedRequestDetails.status}
+                </Badge>
+
+                {selectedRequestDetails.approvedBy && (
+                  <>
+                    <span className="text-sm font-medium text-muted-foreground">Approved By:</span>
+                    <span className="text-sm">{selectedRequestDetails.approvedBy}</span>
+                  </>
+                )}
+                {selectedRequestDetails.approvalDate && (
+                   <>
+                    <span className="text-sm font-medium text-muted-foreground">Approval Date:</span>
+                    <span className="text-sm">{new Date(selectedRequestDetails.approvalDate).toLocaleString()}</span>
+                  </>
+                )}
+
+                {selectedRequestDetails.notes && (
+                  <>
+                    <span className="text-sm font-medium text-muted-foreground col-span-2">Notes:</span>
+                    <p className="text-sm col-span-2 bg-muted/50 p-2 rounded-md whitespace-pre-wrap">{selectedRequestDetails.notes}</p>
+                  </>
+                )}
+              </div>
+
+              <h4 className="text-md font-semibold mt-2 pt-2 border-t">Requested Items:</h4>
+              {selectedRequestDetails.requests.length > 0 ? (
+                <ul className="space-y-2">
+                  {selectedRequestDetails.requests.map((itemLine: RequestedItemLine, index: number) => (
+                    <li key={index} className="flex justify-between items-center p-2 bg-secondary/30 rounded-md">
+                      <span className="text-sm">{itemLine.itemName}</span>
+                      <span className="text-sm font-medium">Qty: {itemLine.quantityRequested}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No items in this request.</p>
+              )}
+              
+               {selectedRequestDetails.lastUpdated && (
+                <div className="mt-4 pt-4 border-t">
+                  <span className="text-xs font-medium text-muted-foreground">Last Updated: </span>
+                  <span className="text-xs text-muted-foreground">{new Date(selectedRequestDetails.lastUpdated).toLocaleString()}</span>
+                </div>
+               )}
+
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Close
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </SidebarInset>
   );
 }
+
