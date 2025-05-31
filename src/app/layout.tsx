@@ -1,7 +1,6 @@
 
 'use client';
 
-import type { Metadata } from 'next';
 import { Inter, Roboto_Mono } from 'next/font/google';
 import { usePathname } from 'next/navigation';
 import './globals.css'; // Global styles
