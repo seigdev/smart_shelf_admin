@@ -187,12 +187,14 @@ export default function RequestsPage() {
     <SidebarInset className="flex flex-1 flex-col">
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-6">
         <PageTitle title="Request Management" description="View, approve, or reject item requests.">
+          {/*
           <Link href="/requests/new" passHref>
             <Button>
               <PlusCircleIcon className="mr-2 h-4 w-4" />
               Create New Request
             </Button>
           </Link>
+          */}
         </PageTitle>
 
         <Card>
