@@ -40,6 +40,7 @@ export interface RequestedItemLine {
   itemId: string; // ID of the item in the inventoryItems collection
   itemName: string; // Name of the item (denormalized for easier display)
   quantityRequested: number;
+  sourceLocation: string; // Shelf name where this item is located
 }
 
 export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
@@ -50,7 +51,7 @@ export interface ItemRequest {
   requesterName: string;
   requestDate: Timestamp | FieldValue | string; // Stored as Timestamp, written with serverTimestamp(), string for display
   status: RequestStatus;
-  requests: RequestedItemLine[]; // Array of items being requested (changed from 'items' to 'requests')
+  requests: RequestedItemLine[];
 
   approvedBy?: string;
   approvalDate?: Timestamp | FieldValue | string; // Stored as Timestamp, string for display
@@ -73,7 +74,7 @@ export interface ItemRequestDisplay extends Omit<ItemRequest, 'requestDate' | 'a
   requesterName: string;
   requestDate: string; // Converted to string for display
   status: RequestStatus;
-  requests: RequestedItemLine[]; // (changed from 'items' to 'requests')
+  requests: RequestedItemLine[];
   approvedBy?: string;
   approvalDate?: string; // Converted to string for display
   notes?: string;

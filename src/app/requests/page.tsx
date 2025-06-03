@@ -50,7 +50,8 @@ import {
   ListFilter,
   Inbox,
   Loader2,
-  EyeIcon
+  EyeIcon,
+  MapPinIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -375,9 +376,15 @@ export default function RequestsPage() {
               {selectedRequestDetails.requests.length > 0 ? (
                 <ul className="space-y-2">
                   {selectedRequestDetails.requests.map((itemLine: RequestedItemLine, index: number) => (
-                    <li key={index} className="flex justify-between items-center p-2 bg-secondary/30 rounded-md">
-                      <span className="text-sm">{itemLine.itemName}</span>
-                      <span className="text-sm font-medium">Qty: {itemLine.quantityRequested}</span>
+                    <li key={index} className="p-2 bg-secondary/30 rounded-md">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">{itemLine.itemName}</span>
+                        <span className="text-sm">Qty: {itemLine.quantityRequested}</span>
+                      </div>
+                       <div className="flex items-center text-xs text-muted-foreground mt-1">
+                        <MapPinIcon className="h-3 w-3 mr-1" />
+                        <span>Shelf: {itemLine.sourceLocation}</span>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -406,4 +413,3 @@ export default function RequestsPage() {
     </SidebarInset>
   );
 }
-

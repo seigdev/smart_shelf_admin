@@ -90,6 +90,7 @@ export default function NewRequestPage() {
         itemId: selectedInventoryItem.id,
         itemName: selectedInventoryItem.name,
         quantityRequested: item.quantityRequested,
+        sourceLocation: selectedInventoryItem.location, // Add source location
       });
     }
 
@@ -196,7 +197,7 @@ export default function NewRequestPage() {
                                   ) : (
                                     inventoryList.map((item) => (
                                       <SelectItem key={item.id} value={item.id}>
-                                        {item.name} (SKU: {item.sku}, Stock: {item.quantity})
+                                        {item.name} (SKU: {item.sku}, Stock: {item.quantity}, Loc: {item.location})
                                       </SelectItem>
                                     ))
                                   )}
@@ -235,7 +236,6 @@ export default function NewRequestPage() {
                       )}
                     </Card>
                   ))}
-                  {/* Display array-level errors (e.g., "Please add at least one item") */}
                   <FormMessage>{form.formState.errors.requestedItemsArray?.root?.message || form.formState.errors.requestedItemsArray?.message}</FormMessage>
 
 
