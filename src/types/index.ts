@@ -40,7 +40,6 @@ export interface RequestedItemLine {
   itemId: string; // ID of the item in the inventoryItems collection
   itemName: string; // Name of the item (denormalized for easier display)
   quantityRequested: number;
-  sourceLocation: string; // Shelf name where this item is located
 }
 
 export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';
@@ -80,3 +79,4 @@ export interface ItemRequestDisplay extends Omit<ItemRequest, 'requestDate' | 'a
   notes?: string;
   lastUpdated?: string; // Converted to string for display
 }
+

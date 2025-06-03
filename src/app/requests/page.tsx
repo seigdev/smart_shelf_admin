@@ -51,7 +51,6 @@ import {
   Inbox,
   Loader2,
   EyeIcon,
-  MapPinIcon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
@@ -380,10 +379,6 @@ export default function RequestsPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">{itemLine.itemName}</span>
                         <span className="text-sm">Qty: {itemLine.quantityRequested}</span>
-                      </div>
-                       <div className="flex items-center text-xs text-muted-foreground mt-1">
-                        <MapPinIcon className="h-3 w-3 mr-1" />
-                        <span>Shelf: {itemLine.sourceLocation}</span>
                       </div>
                     </li>
                   ))}

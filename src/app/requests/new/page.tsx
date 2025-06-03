@@ -90,7 +90,6 @@ export default function NewRequestPage() {
         itemId: selectedInventoryItem.id,
         itemName: selectedInventoryItem.name,
         quantityRequested: item.quantityRequested,
-        sourceLocation: selectedInventoryItem.location, // Add source location
       });
     }
 
@@ -197,7 +196,7 @@ export default function NewRequestPage() {
                                   ) : (
                                     inventoryList.map((item) => (
                                       <SelectItem key={item.id} value={item.id}>
-                                        {item.name} (SKU: {item.sku}, Stock: {item.quantity}, Loc: {item.location})
+                                        {item.name} (SKU: {item.sku}, Stock: {item.quantity})
                                       </SelectItem>
                                     ))
                                   )}
