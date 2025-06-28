@@ -45,7 +45,7 @@ export default function InvoiceGenerationPage() {
           const data = docSnap.data();
           const item: ItemRequestDisplay = {
             id: docSnap.id,
-            requesterName: data.requesterName as string,
+            requesterName: (data.requesterName || "Unknown Requester") as string,
             status: data.status as RequestStatus,
             requests: data.requests || [],
 
