@@ -53,6 +53,7 @@ import {
   Inbox,
   Loader2,
   EyeIcon,
+  MapPinIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { db, storage } from '@/lib/firebase';
@@ -114,7 +115,7 @@ export default function RequestsPage() {
   const generateAndUploadInvoice = async (request: ItemRequestDisplay) => {
     try {
       const pdfDoc = new jsPDF();
-      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify({ requestId: request.id, requester: request.requesterName }));
+      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(request));
 
       pdfDoc.setFontSize(22);
       pdfDoc.text("Invoice", 20, 20);
@@ -130,7 +131,7 @@ export default function RequestsPage() {
       pdfDoc.text("Requested Items:", 20, 60);
       let yPos = 66;
       request.requests.forEach(item => {
-        pdfDoc.text(`- ${item.itemName} (Qty: ${item.quantityRequested})`, 25, yPos);
+        pdfDoc.text(`- ${item.itemName} (Qty: ${item.quantityRequested}) from Shelf: ${item.sourceLocation}`, 25, yPos);
         yPos += 6;
       });
 
@@ -183,7 +184,13 @@ export default function RequestsPage() {
       if (newStatus === 'Approved') {
           const currentRequestData = requestsData.find(r => r.id === requestId);
           if (currentRequestData) {
-            await generateAndUploadInvoice(currentRequestData);
+            // Refetch the latest data before generating invoice to include approval timestamp
+            const updatedRequestData = {
+              ...currentRequestData,
+              status: newStatus,
+              approvalDate: new Date().toISOString(), // Approximate for immediate use
+            }
+            await generateAndUploadInvoice(updatedRequestData);
           }
       }
 
@@ -438,12 +445,16 @@ export default function RequestsPage() {
 
               <h4 className="text-md font-semibold mt-2 pt-2 border-t">Requested Items:</h4>
               {selectedRequestDetails.requests.length > 0 ? (
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {selectedRequestDetails.requests.map((itemLine: RequestedItemLine, index: number) => (
                     <li key={index} className="p-2 bg-secondary/30 rounded-md">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">{itemLine.itemName}</span>
                         <span className="text-sm">Qty: {itemLine.quantityRequested}</span>
+                      </div>
+                      <div className="flex items-center text-xs text-muted-foreground mt-1">
+                        <MapPinIcon className="h-3 w-3 mr-1.5" />
+                        <span>Source: {itemLine.sourceLocation} (ID: {itemLine.itemId})</span>
                       </div>
                     </li>
                   ))}
