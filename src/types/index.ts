@@ -41,6 +41,7 @@ export interface RequestedItemLine {
   itemName: string; // Name of the item (denormalized for easier display)
   quantityRequested: number;
   sourceLocation: string; // The shelf/location of the item
+  sourceLocationId?: string; // The ID of the shelf document
 }
 
 export type RequestStatus = 'Pending' | 'Approved' | 'Rejected';

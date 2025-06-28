@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusSquareIcon, Loader2, CheckCircle, CornerDownLeft, Trash2Icon, PlusCircleIcon } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
-import type { InventoryItem, ItemRequestWrite, RequestedItemLine } from '@/types';
+import type { InventoryItem, ItemRequestWrite, RequestedItemLine, Shelf } from '@/types';
 
 const requestedItemSchema = z.object({
   selectedItemId: z.string().min(1, { message: 'Please select an item.' }),
@@ -39,7 +39,9 @@ type NewRequestFormValues = z.infer<typeof formSchema>;
 export default function NewRequestPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [inventoryList, setInventoryList] = useState<InventoryItem[]>([]);
+  const [shelvesList, setShelvesList] = useState<Shelf[]>([]);
   const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+  const [isLoadingShelves, setIsLoadingShelves] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -72,7 +74,24 @@ export default function NewRequestPage() {
       }
       setIsLoadingInventory(false);
     }
+    
+    async function fetchShelves() {
+      setIsLoadingShelves(true);
+      try {
+        const shelvesCollectionRef = collection(db, 'shelves');
+        const q = query(shelvesCollectionRef);
+        const shelvesSnapshot = await getDocs(q);
+        const fetchedShelves = shelvesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Shelf));
+        setShelvesList(fetchedShelves);
+      } catch (error) {
+        console.error("Error fetching shelves: ", error);
+        toast({ title: "Error", description: "Could not fetch shelves list.", variant: "destructive" });
+      }
+      setIsLoadingShelves(false);
+    }
+    
     fetchInventoryForDropdown();
+    fetchShelves();
   }, [toast]);
 
   const onSubmit: SubmitHandler<NewRequestFormValues> = async (data) => {
@@ -86,11 +105,15 @@ export default function NewRequestPage() {
         setIsSaving(false);
         return;
       }
+
+      const sourceShelf = shelvesList.find(shelf => shelf.name === selectedInventoryItem.location);
+      
       finalRequestedItems.push({
         itemId: selectedInventoryItem.id,
         itemName: selectedInventoryItem.name,
         quantityRequested: item.quantityRequested,
         sourceLocation: selectedInventoryItem.location,
+        sourceLocationId: sourceShelf?.id,
       });
     }
 
@@ -243,7 +266,7 @@ export default function NewRequestPage() {
                     type="button"
                     variant="outline"
                     onClick={() => append({ selectedItemId: '', quantityRequested: 1 })}
-                    disabled={isSaving || isLoadingInventory}
+                    disabled={isSaving || isLoadingInventory || isLoadingShelves}
                     className="w-full sm:w-auto"
                   >
                     <PlusCircleIcon className="mr-2 h-4 w-4" />
@@ -270,7 +293,7 @@ export default function NewRequestPage() {
                 />
               </CardContent>
               <CardFooter>
-                <Button type="submit" disabled={isSaving || isLoadingInventory} className="w-full sm:w-auto">
+                <Button type="submit" disabled={isSaving || isLoadingInventory || isLoadingShelves} className="w-full sm:w-auto">
                   {isSaving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (

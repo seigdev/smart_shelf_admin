@@ -454,7 +454,7 @@ export default function RequestsPage() {
                       </div>
                       <div className="flex items-center text-xs text-muted-foreground mt-1">
                         <MapPinIcon className="h-3 w-3 mr-1.5" />
-                        <span>Source: {itemLine.sourceLocation} (ID: {itemLine.itemId})</span>
+                        <span>Source: {itemLine.sourceLocation} (Shelf ID: {itemLine.sourceLocationId || 'N/A'}, Item ID: {itemLine.itemId})</span>
                       </div>
                     </li>
                   ))}
