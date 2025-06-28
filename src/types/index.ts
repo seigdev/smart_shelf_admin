@@ -56,6 +56,7 @@ export interface ItemRequest {
   approvalDate?: Timestamp | FieldValue | string; // Stored as Timestamp, string for display
   notes?: string;
   lastUpdated?: Timestamp | FieldValue | string; // string for display
+  invoiceUrl?: string;
 }
 
 // Type for writing new ItemRequest documents to Firestore
@@ -63,6 +64,7 @@ export type ItemRequestWrite = Omit<ItemRequest, 'id' | 'requestDate' | 'approva
   requestDate: FieldValue;
   approvalDate?: FieldValue;
   lastUpdated?: FieldValue;
+  invoiceUrl?: string;
 };
 
 
@@ -78,5 +80,5 @@ export interface ItemRequestDisplay extends Omit<ItemRequest, 'requestDate' | 'a
   approvalDate?: string; // Converted to string for display
   notes?: string;
   lastUpdated?: string; // Converted to string for display
+  invoiceUrl?: string;
 }
-

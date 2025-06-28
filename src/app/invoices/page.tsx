@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { PageTitle } from '@/components/common/page-title';
-import type { ItemRequestDisplay, RequestStatus } from '@/types'; // ItemRequestDisplay now has 'requests' field
+import type { ItemRequestDisplay, RequestStatus } from '@/types';
 import { SidebarInset } from '@/components/ui/sidebar';
 import { FileTextIcon, SearchIcon, AlertTriangleIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -47,7 +47,7 @@ export default function InvoiceGenerationPage() {
             id: docSnap.id,
             requesterName: data.requesterName as string,
             status: data.status as RequestStatus,
-            requests: data.requests || [], // Changed from 'items' to 'requests'
+            requests: data.requests || [],
 
             requestDate: data.requestDate instanceof Timestamp
                             ? data.requestDate.toDate().toISOString()
@@ -61,6 +61,7 @@ export default function InvoiceGenerationPage() {
             lastUpdated: data.lastUpdated instanceof Timestamp
                             ? data.lastUpdated.toDate().toISOString()
                             : (data.lastUpdated ? String(data.lastUpdated) : undefined),
+            invoiceUrl: data.invoiceUrl as string | undefined,
           };
           return item;
         });
@@ -84,23 +85,13 @@ export default function InvoiceGenerationPage() {
     fetchApprovedRequests();
   }, [toast]);
 
-  const handleGenerateInvoice = (request: ItemRequestDisplay) => {
-    const itemsList = request.requests.map(item => `${item.itemName} (Qty: ${item.quantityRequested})`).join(', '); // Changed from 'items' to 'requests'
-    console.log(`Simulating invoice generation for request ${request.id} containing: ${itemsList}`);
-    toast({
-      title: 'Invoice Generation Simulated',
-      description: `Invoice for request ID ${request.id} for items: ${itemsList} would be generated here.`,
-      action: <FileTextIcon className="h-5 w-5 text-primary" />,
-    });
-  };
-
   const filteredApprovedRequests = useMemo(() => {
     if (!searchTerm) return approvedRequests;
     const term = searchTerm.toLowerCase();
     return approvedRequests.filter(
       (request) =>
         request.id.toLowerCase().includes(term) ||
-        (request.requests[0]?.itemName.toLowerCase() || '').includes(term) || // Changed from 'items' to 'requests'
+        (request.requests[0]?.itemName.toLowerCase() || '').includes(term) ||
         request.requesterName.toLowerCase().includes(term)
     );
   }, [approvedRequests, searchTerm]);
@@ -172,13 +163,18 @@ export default function InvoiceGenerationPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          onClick={() => handleGenerateInvoice(request)}
-                          size="sm"
-                        >
-                          <FileTextIcon className="mr-2 h-4 w-4" />
-                          Generate Invoice
-                        </Button>
+                        {request.invoiceUrl ? (
+                          <a href={request.invoiceUrl} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm">
+                              <FileTextIcon className="mr-2 h-4 w-4" />
+                              View Invoice
+                            </Button>
+                          </a>
+                        ) : (
+                          <Button size="sm" disabled variant="secondary">
+                            Invoice Not Ready
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

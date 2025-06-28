@@ -3,6 +3,8 @@
 
 import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 import {
   Table,
   TableBody,
@@ -53,8 +55,10 @@ import {
   EyeIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { collection, getDocs, doc, updateDoc, query, orderBy, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
 
 const statusOptions: { value: RequestStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Statuses' },
@@ -84,14 +88,15 @@ export default function RequestsPage() {
         const data = docSnap.data();
         return {
           id: docSnap.id,
-          requesterName: data.requesterName,
-          status: data.status,
+          requesterName: (data.requesterName || "Unknown Requester") as string,
+          status: (data.status || 'Pending') as RequestStatus,
           requests: data.requests || [],
           requestDate: data.requestDate instanceof Timestamp ? data.requestDate.toDate().toISOString() : String(data.requestDate || ''),
           approvedBy: data.approvedBy,
           approvalDate: data.approvalDate instanceof Timestamp ? data.approvalDate.toDate().toISOString() : (data.approvalDate ? String(data.approvalDate) : undefined),
           notes: data.notes,
           lastUpdated: data.lastUpdated instanceof Timestamp ? data.lastUpdated.toDate().toISOString() : (data.lastUpdated ? String(data.lastUpdated) : undefined),
+          invoiceUrl: data.invoiceUrl,
         } as ItemRequestDisplay;
       });
       setRequestsData(fetchedRequests);
@@ -105,6 +110,59 @@ export default function RequestsPage() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  const generateAndUploadInvoice = async (request: ItemRequestDisplay) => {
+    try {
+      const doc = new jsPDF();
+      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify({ requestId: request.id, requester: request.requesterName }));
+
+      doc.setFontSize(22);
+      doc.text("Invoice", 20, 20);
+
+      doc.setFontSize(12);
+      doc.text(`Request ID: ${request.id}`, 20, 30);
+      doc.text(`Requester: ${request.requesterName}`, 20, 36);
+      doc.text(`Request Date: ${new Date(request.requestDate).toLocaleDateString()}`, 20, 42);
+      if (request.approvalDate) {
+        doc.text(`Approval Date: ${new Date(request.approvalDate).toLocaleDateString()}`, 20, 48);
+      }
+      
+      doc.text("Requested Items:", 20, 60);
+      let yPos = 66;
+      request.requests.forEach(item => {
+        doc.text(`- ${item.itemName} (Qty: ${item.quantityRequested})`, 25, yPos);
+        yPos += 6;
+      });
+
+      doc.addImage(qrCodeDataUrl, 'JPEG', 150, 15, 45, 45);
+
+      const pdfBlob = doc.output('blob');
+      const storageRef = ref(storage, `invoices/${request.id}.pdf`);
+      await uploadBytes(storageRef, pdfBlob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const requestDocRef = doc(db, 'itemRequests', request.id);
+      await updateDoc(requestDocRef, {
+        invoiceUrl: downloadURL,
+        lastUpdated: serverTimestamp(),
+      });
+      
+      toast({
+        title: 'Invoice Generated',
+        description: `Invoice for request ${request.id} has been created and stored.`,
+      });
+
+      return downloadURL;
+    } catch (error) {
+      console.error("Error generating or uploading invoice: ", error);
+      toast({
+        title: 'Invoice Generation Failed',
+        description: 'There was an error creating the invoice PDF.',
+        variant: 'destructive',
+      });
+      return null;
+    }
+  };
 
   const handleUpdateRequestStatus = async (requestId: string, newStatus: 'Approved' | 'Rejected') => {
     setIsUpdating(requestId);
@@ -121,6 +179,13 @@ export default function RequestsPage() {
       }
 
       await updateDoc(requestDocRef, updateData);
+      
+      if (newStatus === 'Approved') {
+          const currentRequestData = requestsData.find(r => r.id === requestId);
+          if (currentRequestData) {
+            await generateAndUploadInvoice(currentRequestData);
+          }
+      }
 
       toast({
         title: `Request ${newStatus}`,
