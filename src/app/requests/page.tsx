@@ -113,30 +113,30 @@ export default function RequestsPage() {
 
   const generateAndUploadInvoice = async (request: ItemRequestDisplay) => {
     try {
-      const doc = new jsPDF();
+      const pdfDoc = new jsPDF();
       const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify({ requestId: request.id, requester: request.requesterName }));
 
-      doc.setFontSize(22);
-      doc.text("Invoice", 20, 20);
+      pdfDoc.setFontSize(22);
+      pdfDoc.text("Invoice", 20, 20);
 
-      doc.setFontSize(12);
-      doc.text(`Request ID: ${request.id}`, 20, 30);
-      doc.text(`Requester: ${request.requesterName}`, 20, 36);
-      doc.text(`Request Date: ${new Date(request.requestDate).toLocaleDateString()}`, 20, 42);
+      pdfDoc.setFontSize(12);
+      pdfDoc.text(`Request ID: ${request.id}`, 20, 30);
+      pdfDoc.text(`Requester: ${request.requesterName}`, 20, 36);
+      pdfDoc.text(`Request Date: ${new Date(request.requestDate).toLocaleDateString()}`, 20, 42);
       if (request.approvalDate) {
-        doc.text(`Approval Date: ${new Date(request.approvalDate).toLocaleDateString()}`, 20, 48);
+        pdfDoc.text(`Approval Date: ${new Date(request.approvalDate).toLocaleDateString()}`, 20, 48);
       }
       
-      doc.text("Requested Items:", 20, 60);
+      pdfDoc.text("Requested Items:", 20, 60);
       let yPos = 66;
       request.requests.forEach(item => {
-        doc.text(`- ${item.itemName} (Qty: ${item.quantityRequested})`, 25, yPos);
+        pdfDoc.text(`- ${item.itemName} (Qty: ${item.quantityRequested})`, 25, yPos);
         yPos += 6;
       });
 
-      doc.addImage(qrCodeDataUrl, 'JPEG', 150, 15, 45, 45);
+      pdfDoc.addImage(qrCodeDataUrl, 'JPEG', 150, 15, 45, 45);
 
-      const pdfBlob = doc.output('blob');
+      const pdfBlob = pdfDoc.output('blob');
       const storageRef = ref(storage, `invoices/${request.id}.pdf`);
       await uploadBytes(storageRef, pdfBlob);
       const downloadURL = await getDownloadURL(storageRef);
